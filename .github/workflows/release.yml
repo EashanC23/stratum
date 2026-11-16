@@ -1,0 +1,83 @@
+name: Release
+
+# Tag a commit with a semver tag and push it:  git tag v0.1.0 && git push origin v0.1.0
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)publish"
+        required: true
+
+permissions:
+  contents: write # needed to create the release
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    name: build and publish
+    runs-on: macos-14
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Install Rust 1.95
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.95"
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Gate on the test suite
+        # Never publish a binary the tests do not vouch for.
+        run: |
+          cargo test --all-targets
+          cargo build --release --locked
+
+      - name: Package
+        id: pack
+        run: |
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          name="stratum-${tag}-macos-arm64"
+          mkdir -p "dist/${name}"
+          cp target/release/stratum "dist/${name}/stratum"
+          cp README.md HANDOFF.md "dist/${name}/"
+          tar -C dist -czf "dist/${name}.tar.gz" "${name}"
+          ( cd dist && shasum -a 256 "${name}.tar.gz" > "${name}.tar.gz.sha256" )
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "archive=dist/${name}.tar.gz" >> "$GITHUB_OUTPUT"
+          cat "dist/${name}.tar.gz.sha256"
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.pack.outputs.tag }}
+          name: stratum ${{ steps.pack.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            ${{ steps.pack.outputs.archive }}
+            ${{ steps.pack.outputs.archive }}.sha256
+          fail_on_unmatched_files: true
+          body: |
+            `stratum` is a macOS desktop-widget runtime — see the README for what
+            it is, and `HANDOFF.md` for how it works.
+
+            ```sh
+            tar -xzf stratum-${{ steps.pack.outputs.tag }}-macos-arm64.tar.gz
+            ./stratum-${{ steps.pack.outputs.tag }}-macos-arm64/stratum init
+            ./stratum-${{ steps.pack.outputs.tag }}-macos-arm64/stratum live
+            ```
+
+            The binary is unsigned. macOS may require
+            `xattr -d com.apple.quarantine ./stratum` after extracting, and the
+            login item (`stratum service install`) records the binary's absolute
+            path — reinstall it if you move the file.

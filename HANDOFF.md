@@ -76,6 +76,10 @@ windowed presenter is the one big piece left (Milestone 5).
 | `src/present.rs` | 104 | `Presenter` trait + headless PNG implementation |
 | `src/main.rs` | 322 | `render` / `run` / `click` / `fixture` / `dump` CLI |
 | `examples/widgets.toml` | — | seven widgets exercising every atom, layout mode and the click path |
+| `scripts/check_docs.py` | 175 | links, anchors and every fenced config block (via `stratum dump`) |
+| `.github/workflows/ci.yml` | — | fmt · clippy · tests · goldens · docs · audit, macOS arm64 |
+| `.github/workflows/release.yml` | — | tag → tested binary, `.tar.gz` + sha256, GitHub release |
+| `.github/dependabot.yml` | — | weekly cargo/action updates; `tiny-skia`/`fontdue` held back |
 
 Dependencies (deliberately small, no GPU, no windowing): `tiny-skia`, `fontdue`,
 `resvg`+`usvg`, `serde`, `serde_json`, `toml`.
@@ -540,6 +544,13 @@ value without the runtime knowing anything about HTTP, JSON, or auth.
 what a config tree wants:
 
 ```toml
+[[widget]]
+id = "clock"
+[[widget.elements]]
+type = "text"
+value = "{{time}}"
+kind = "dynamic"
+
 [widget.script]
 file = "clock.sh"        # resolved as described in §3
 interval = 1.0
@@ -648,6 +659,21 @@ rewrite the expectations it is checking.
 Not covered by goldens: the live presenter itself (window creation, layer
 compositing, run-loop pumping). Those need a display; they are verified by
 `live --snapshot` against `docs/live-snapshots/`, which is manual by nature.
+
+### In CI
+
+`.github/workflows/ci.yml` (macOS arm64, on every push and PR) runs the gates plus
+two things a laptop usually skips:
+
+- `python3 scripts/check_docs.py README.md HANDOFF.md --bin target/release/stratum`
+  — links, anchors, and every ` ```toml ` block fed to `stratum dump`, so a broken
+  config example fails the build. This caught a fragment in §5 that was not a
+  valid widget.
+- `cargo audit` — vulnerabilities fail; the one unmaintained-crate warning is
+  printed and allowed.
+
+`release.yml` publishes on a `v*` tag after re-running the suite; `dependabot.yml`
+holds `tiny-skia` and `fontdue` back because their upgrades can shift antialiasing.
 
 ### Running them
 

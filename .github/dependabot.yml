@@ -1,0 +1,31 @@
+version: 2
+
+updates:
+  # Rust dependencies. Grouped so a week of point releases is one PR, not eight.
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    groups:
+      patch-and-minor:
+        update-types: ["patch", "minor"]
+    commit-message:
+      prefix: "deps"
+    ignore:
+      # Pinned by the golden images: a tiny-skia bump can change antialiasing,
+      # which is a deliberate regeneration, not a drive-by upgrade.
+      - dependency-name: tiny-skia
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: fontdue
+
+  # Keep the actions in the workflows current (they are pinned to major tags).
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "ci"

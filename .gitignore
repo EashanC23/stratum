@@ -1,2 +1,12 @@
 /target
 /out
+
+# ~/.gitignore on this machine ignores everything at the repo root ("/*"), which
+# would silently drop new top-level dirs from commits. Re-include what the project
+# actually ships; per-directory .gitignore takes precedence over the global one.
+!/.github/
+!/scripts/
+!/docs/
+!/tests/
+!/examples/
+!/src/

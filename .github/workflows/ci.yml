@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# One run per ref; a new push cancels the previous one.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  check:
+    name: fmt · clippy · tests · goldens · docs
+    # macOS only, and deliberately arm64: the golden images were rendered with a
+    # vendored font on arm64, and tiny-skia's SIMD paths differ between NEON and
+    # SSE. An x86_64 runner would compare against pixels generated elsewhere.
+    runs-on: macos-14
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust 1.95
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # Pinned to the version in Cargo.toml's rust-version.
+          toolchain: "1.95"
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry and target
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Share the cache across the fmt/clippy/test/clippy jobs' compilations,
+          # but keep release artefacts separate from debug ones.
+          key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Format
+        run: cargo fmt --all --check
+
+      - name: Clippy (warnings are errors)
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Tests
+        run: cargo test --all-targets -- --nocapture
+
+      - name: Golden images
+        # Named separately so a rendering regression is obvious in the UI. Runs
+        # inside `cargo test` too; this is the explicit gate.
+        run: cargo test --test golden
+
+      - name: Build release
+        run: cargo build --release --locked
+
+      - name: Docs — links, anchors and every code block
+        # Each ```toml block is fed to `stratum dump`, so a config example the
+        # program rejects cannot ship; each shell block goes through `sh -n`.
+        run: python3 scripts/check_docs.py README.md HANDOFF.md --bin target/release/stratum
+
+      - name: Cache cargo-audit
+        id: audit-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: cargo-audit-0.23.0
+
+      - name: Dependency audit
+        run: |
+          # Fails on vulnerabilities. Unmaintained-crate warnings are surfaced in
+          # the log but do not fail the build (ttf-parser, via fontdue, today).
+          command -v cargo-audit >/dev/null ||
+            cargo install cargo-audit --locked --version 0.23.0 --quiet
+          cargo audit
+
+      - name: Report artefact size
+        run: |
+          ls -lh target/release/stratum
+          echo "binary bytes: $(stat -f%z target/release/stratum)"
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: stratum-macos-arm64
+          path: target/release/stratum
+          if-no-files-found: error
+          retention-days: 14

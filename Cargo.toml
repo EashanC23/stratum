@@ -2,6 +2,9 @@
 name = "stratum"
 version = "0.1.0"
 edition = "2024"
+# The version this is developed and tested against; edition 2024 needs 1.85+,
+# but claiming a lower MSRV would be a guess. See README "Prerequisites".
+rust-version = "1.95"
 
 # Lint policy: warn in source, `-D warnings` in CI. Pedantic is selected, not the
 # whole group — the group's style opinions would drown the ones that catch bugs.

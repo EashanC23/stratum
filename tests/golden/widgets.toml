@@ -1,0 +1,252 @@
+# Golden-image corpus.
+#
+# Everything here is deterministic on purpose:
+#   - the font is PINNED to tests/golden/fonts/ (system fonts change across macOS
+#     releases and would make every golden machine-specific)
+#   - all data is inline, all text is `static`: no scripts, no clock, no sysctl
+#   - assets live in tests/golden/assets/
+#
+# Each widget is rendered at 1x and 2x by `tests/golden.rs`, producing
+# `<id>@1x.png` and `<id>@2x.png` in this directory.
+#
+# This config is NOT a demo — examples/widgets.toml is the demo. Keep it boring,
+# and keep it covering every atom and layout mode.
+
+screen = { x = 0, y = 0, w = 1600, h = 1000 }
+scale = 2
+
+[fonts]
+mono = "tests/golden/fonts/JetBrainsMono-Regular.ttf"
+default = "tests/golden/fonts/JetBrainsMono-Regular.ttf"
+
+# ------------------------------------------------------- plate + border ----
+# Rounded rect, 1pt border, and the offset-plate "shadow". Catches radius,
+# stroke width, colour parsing and premultiplication.
+[[widget]]
+id = "plate"
+anchor = "top-left"
+frame = { x = 0, y = 0, w = 160, h = 48 }
+padding = 8
+background = { enabled = true, color = "#12121ae6", corner_radius = 10, border_width = 1, border_color = "#ffffff33", shadow = { enabled = true, color = "#00000059", y_offset = 3 } }
+
+[[widget.elements]]
+type = "text"
+value = "plate"
+kind = "static"
+font = "mono"
+size = 12
+color = "#e6e6f0"
+
+# ------------------------------------------------------------- text -------------
+# Static text, per-side padding, alignment, and max_chars truncation (ellipsis).
+[[widget]]
+id = "text"
+anchor = "top-left"
+frame = { x = 0, y = 0, w = 240, h = 72 }
+padding = { left = 8, right = 8, top = 6, bottom = 6 }
+layout = "column"
+gap = 2
+background = { enabled = true, color = "#0e0e12", corner_radius = 6 }
+
+[[widget.elements]]
+type = "text"
+value = "left aligned"
+kind = "static"
+font = "mono"
+size = 11
+color = "#ffffff"
+align = "left"
+
+[[widget.elements]]
+type = "text"
+value = "centred"
+kind = "static"
+font = "mono"
+size = 11
+color = "#9a9aa8"
+align = "center"
+
+[[widget.elements]]
+type = "text"
+value = "this label is far too long to fit in the plate"
+kind = "static"
+font = "mono"
+size = 11
+color = "#6cc6ff"
+align = "right"
+max_chars = 20
+background = { enabled = true, color = "#ffffff14", corner_radius = 3 }
+
+# ------------------------------------------------------------- icons ----
+# SVG (rasterised at target size, tinted) + PNG (resampled, tinted), row layout.
+[[widget]]
+id = "icons"
+anchor = "top-left"
+frame = { x = 0, y = 0 }
+padding = 8
+gap = 6
+layout = "row"
+background = { enabled = true, color = "#0e0e12", corner_radius = 8 }
+
+[[widget.elements]]
+type = "icon"
+svg = "tests/golden/assets/star.svg"
+size = 16
+tint = "#5ad1a0"
+
+[[widget.elements]]
+type = "icon"
+bitmap = "tests/golden/assets/diamond.png"
+size = 16
+tint = "#6cc6ff"
+
+[[widget.elements]]
+type = "text"
+value = "icons"
+kind = "static"
+font = "mono"
+size = 12
+color = "#d8d8e0"
+
+# ------------------------------------------------------------- donut ----
+[[widget]]
+id = "donut"
+anchor = "top-left"
+frame = { x = 0, y = 0 }
+padding = 8
+gap = 8
+layout = "row"
+background = { enabled = true, color = "#0e0e12", corner_radius = 8 }
+
+[[widget.elements]]
+type = "graph"
+kind = "donut"
+data = [63, 22, 15]
+thickness = 0.6
+width = 32
+height = 32
+colors = ["#ff8f6b", "#f2c94c", "#56ccf2"]
+
+[[widget.elements]]
+type = "text"
+value = "63%"
+kind = "static"
+font = "mono"
+size = 12
+color = "#ff8f6b"
+
+# --------------------------------------------- donut, partial (weight) ----
+# `weight` is the fraction of the circle the ring occupies: 0.55 here, so the
+# gap is 0.225 of a turn on each side of the bottom.
+[[widget]]
+id = "donut-partial"
+anchor = "top-left"
+frame = { x = 0, y = 0 }
+padding = 8
+background = { enabled = true, color = "#0e0e12", corner_radius = 8 }
+
+[[widget.elements]]
+type = "graph"
+kind = "donut"
+data = [63, 22, 15]
+weight = 0.55
+thickness = 0.6
+width = 48
+height = 48
+colors = ["#ff8f6b", "#f2c94c", "#56ccf2"]
+
+# -------------------------------------------------------------- line ----
+# Filled plus stroked polyline; catches the path, the fill alpha and the
+# min/max normalisation.
+[[widget]]
+id = "line"
+anchor = "top-left"
+frame = { x = 0, y = 0 }
+padding = 6
+background = { enabled = true, color = "#0e0e12cc", corner_radius = 8 }
+
+[[widget.elements]]
+type = "graph"
+kind = "line"
+data = [3, 7, 4, 9, 12, 8, 15, 11]
+width = 160
+height = 44
+thickness = 1.5
+filled = true
+colors = ["#6cc6ff"]
+
+# --------------------------------------------------------------- bar ----
+# Rounded bars, gap from `thickness`, per-bar colour cycling.
+[[widget]]
+id = "bar"
+anchor = "top-left"
+frame = { x = 0, y = 0 }
+padding = 6
+background = { enabled = true, color = "#0e0e12", corner_radius = 8 }
+
+[[widget.elements]]
+type = "graph"
+kind = "bar"
+data = [4, 9, 6, 12, 8]
+width = 140
+height = 40
+thickness = 4
+colors = ["#5ad1a0", "#f2c94c", "#eb5757"]
+
+# ------------------------------------------------------------- stack ----
+# Paint order: graph first, then text on top. Catches `Layout::Stack` centring.
+[[widget]]
+id = "stack"
+anchor = "top-left"
+frame = { x = 0, y = 0, w = 200, h = 56 }
+padding = 8
+layout = "stack"
+background = { enabled = true, color = "#0e0e12", corner_radius = 10 }
+
+[[widget.elements]]
+type = "graph"
+kind = "line"
+data = [1, 4, 2, 8, 5, 9]
+width = 184
+height = 40
+thickness = 1.0
+filled = true
+colors = ["#5ad1a0"]
+
+[[widget.elements]]
+type = "text"
+value = "on top"
+kind = "static"
+font = "mono"
+size = 11
+color = "#ffffff"
+align = "center"
+
+# ------------------------------------------------------------- dynamic ----
+# `dynamic` text with no values available: the template must collapse to empty
+# rather than drawing literal braces, and the plate must shrink to fit. This is
+# the state every widget is in on its very first frame.
+[[widget]]
+id = "dynamic"
+anchor = "top-left"
+frame = { x = 0, y = 0 }
+padding = 8
+gap = 4
+layout = "row"
+background = { enabled = true, color = "#0e0e12", corner_radius = 8 }
+
+[[widget.elements]]
+type = "text"
+value = "empty:"
+kind = "static"
+font = "mono"
+size = 12
+color = "#8f8fa0"
+
+[[widget.elements]]
+type = "text"
+value = "{{missing}}"
+kind = "dynamic"
+font = "mono"
+size = 12
+color = "#f2c94c"

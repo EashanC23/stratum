@@ -1,0 +1,5 @@
+# Panics are bugs here: production code returns Result, tests may unwrap.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+# A widget's element list is genuinely heterogeneous; the enum is the design.
+avoid-breaking-exported-api = false

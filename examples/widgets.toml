@@ -1,0 +1,243 @@
+# stratum demo — six widgets spread across a 1512x982 desktop.
+#
+# Every widget is an ordered list of elements; paint order is declaration order.
+#
+# Placement vs. stacking:
+#   anchor/frame  where the widget sits on the desktop
+#   always_on_top false (default) = it belongs to the desktop; app windows cover it
+#   always_on_top true            = it floats above applications and the menu bar
+#   click_through true (default)  = clicks land on whatever is underneath
+# Run:  cargo run -- fixture          (writes examples/star.svg + diamond.png)
+#       cargo run -- render examples/widgets.toml
+#       cargo run -- render examples/widgets.toml --frames 3
+
+screen = { x = 0, y = 0, w = 1512, h = 982 }
+scale = 2
+
+[output]
+dir = "out"
+composite = true
+
+# ---------------------------------------------------------------- top left ---
+# icon (bitmap) + static label  ->  the "immutable label" case
+[[widget]]
+id = "host"
+anchor = "top-left"
+frame = { x = 24, y = 18 }
+padding = 10
+gap = 8
+layout = "row"
+background = { enabled = true, color = "#0e0e12e6", corner_radius = 9, border_width = 1, border_color = "#ffffff1a" }
+
+[[widget.elements]]
+type = "icon"
+bitmap = "examples/diamond.png"
+size = 16
+
+[[widget.elements]]
+type = "text"
+value = "mac-studio"
+kind = "static"          # measured once, never re-shaped
+font = "mono"
+size = 12
+color = "#d8d8e0"
+
+# -------------------------------------------------------------- top right ----
+# dynamic text from a script + a donut: the "value + chart" composition
+[[widget]]
+id = "disk"
+anchor = "top-right"
+# The one widget that floats above applications. Everything else defaults to
+# desktop level, so app windows cover it like they cover the wallpaper.
+always_on_top = true
+frame = { x = 24, y = 18 }
+padding = 10
+gap = 10
+layout = "row"
+background = { enabled = true, color = "#0e0e12e6", corner_radius = 9 }
+
+[[widget.elements]]
+type = "graph"
+kind = "donut"
+data_key = "parts"        # "used,free" from the script
+thickness = 0.62          # hole ratio
+width = 22
+height = 22
+colors = ["#ff8f6b", "#2b2b33"]
+
+[[widget.elements]]
+type = "text"
+value = "{{pct}}%"
+kind = "dynamic"
+font = "mono"
+size = 12
+color = "#ff8f6b"
+align = "left"
+
+[widget.script]
+command = "echo parts=63,37; echo pct=63"
+interval = 2.0
+
+# ----------------------------------------------------------------- centre ----
+# stacked composition: a bar chart behind a title (Layout::Stack)
+[[widget]]
+id = "load"
+anchor = "top-center"
+frame = { x = 0, y = 18 }
+padding = 12
+layout = "stack"
+background = { enabled = true, color = "#0e0e12e6", corner_radius = 12 }
+
+[[widget.elements]]
+type = "graph"
+kind = "bar"
+data_key = "load"
+width = 240
+height = 46
+thickness = 4             # gap between bars
+colors = ["#5ad1a0", "#5ad1a0", "#5ad1a0", "#f2c94c", "#f2c94c", "#eb5757"]
+
+[[widget.elements]]
+type = "text"
+value = "load average"
+kind = "static"
+size = 11
+color = "#ffffff"
+align = "center"
+
+[widget.script]
+command = "printf 'load=%s\\n' \"$(sysctl -n vm.loadavg | tr -d '{}' | tr ' ' ',')\""
+interval = 5.0
+
+# ------------------------------------------------------------- bottom left ---
+# line chart with a filled area, no background plate
+[[widget]]
+id = "net"
+anchor = "bottom-left"
+frame = { x = 24, y = 24 }
+padding = 8
+layout = "column"
+gap = 4
+background = { enabled = true, color = "#0e0e12cc", corner_radius = 10 }
+
+[[widget.elements]]
+type = "graph"
+kind = "line"
+data_key = "rx"
+width = 220
+height = 44
+thickness = 1.5
+filled = true
+colors = ["#6cc6ff"]
+
+[[widget.elements]]
+type = "text"
+value = "{{rx_label}}"
+kind = "dynamic"
+font = "mono"
+size = 11
+color = "#6cc6ff"
+
+[widget.script]
+command = "printf 'rx=3,7,4,9,12,8,15,11,14,18\\n'; echo rx_label=18 MB/s"
+interval = 1.0
+
+# ------------------------------------------------------------ bottom right ---
+# icon (svg, tinted) + two texts, row layout — mixed atoms in one widget
+[[widget]]
+id = "battery"
+anchor = "bottom-right"
+frame = { x = 24, y = 24 }
+padding = 10
+gap = 7
+layout = "row"
+background = { enabled = true, color = "#0e0e12e6", corner_radius = 9 }
+
+[[widget.elements]]
+type = "icon"
+svg = "examples/star.svg"
+size = 14
+tint = "#5ad1a0"
+
+[[widget.elements]]
+type = "text"
+value = "{{pct}}%"
+kind = "dynamic"
+font = "mono"
+size = 12
+color = "#5ad1a0"
+
+[[widget.elements]]
+type = "text"
+value = "charging"
+kind = "static"
+size = 11
+color = "#7a7a88"
+
+[widget.script]
+command = "echo pct=87"
+interval = 30.0
+
+# ---------------------------------------------------------------- centre ----
+# a fixed-size plate with a max_chars-clamped dynamic title
+[[widget]]
+id = "now"
+anchor = "center"
+frame = { x = 0, y = 0, w = 260, h = 64 }
+padding = 14
+layout = "column"
+gap = 6
+background = { enabled = true, color = "#12121af2", corner_radius = 14, border_width = 1, border_color = "#ffffff20" }
+
+[[widget.elements]]
+type = "text"
+value = "{{title}}"
+kind = "dynamic"
+size = 14
+max_chars = 28
+color = "#ffffff"
+
+[[widget.elements]]
+type = "text"
+value = "{{artist}}"
+kind = "dynamic"
+size = 11
+color = "#8f8fa0"
+
+[widget.script]
+command = "echo 'title=A Very Long Track Name That Gets Clipped'; echo artist=Some Artist"
+interval = 0.0
+
+# ------------------------------------------------------------ clickable ----
+# Event-driven, not polled: `interval = 0` means "never poll", and `on = ["click"]`
+# makes the script run only when this widget is clicked. The script reads
+# STRATUM_EVENT and STRATUM_CLICK_X/Y, and keeps its own state in a file — the
+# renderer holds no state for it, exactly like a sketchybar plugin script.
+[[widget]]
+id = "toggle"
+anchor = "bottom-center"
+frame = { x = 0, y = 24 }
+padding = 10
+gap = 6
+layout = "row"
+background = { enabled = true, color = "#0e0e12e6", corner_radius = 9 }
+
+[[widget.elements]]
+type = "text"
+value = "click me:"
+kind = "static"
+size = 11
+color = "#8f8fa0"
+
+[[widget.elements]]
+type = "text"
+value = "{{state}}"
+kind = "dynamic"
+font = "mono"
+size = 12
+color = "#f2c94c"
+
+[widget.script]
+command = "s=$(cat /tmp/stratum-toggle 2>/dev/null || echo off); if [ \"$s\" = off ]; then s=on; else s=off; fi; echo $s > /tmp/stratum-toggle; echo state=$s; echo last_event=$STRATUM_EVENT"
+interval = 0.0
+on = ["click"]

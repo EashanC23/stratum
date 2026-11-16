@@ -33,6 +33,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Lint the workflows
+        # A malformed workflow fails every run in two seconds with an unhelpful
+        # message; actionlint catches it on the push that introduced it.
+        run: |
+          brew install --quiet actionlint
+          actionlint -color .github/workflows/*.yml
+
       - name: Runner info
         run: |
           uname -m

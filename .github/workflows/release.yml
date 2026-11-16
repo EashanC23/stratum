@@ -30,14 +30,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - name: Runner info
         run: |
           uname -m
           sw_vers
           echo "runner: $ImageOS / $ImageVersion"
-        with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - name: Install Rust 1.95
         uses: dtolnay/rust-toolchain@stable

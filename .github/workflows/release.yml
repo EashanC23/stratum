@@ -20,12 +20,22 @@ env:
 jobs:
   release:
     name: build and publish
-    runs-on: macos-14
+    # `macos-14` resolves to an unsupported configuration on this account
+    # ("macos-14-arm64-us-xl is not supported"), so ask for `macos-latest`,
+    # which is always routable. Pin a concrete label later if the fleet
+    # needs determinism — the "Runner info" step prints what you actually got.
+    runs-on: macos-latest
     timeout-minutes: 25
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Runner info
+        run: |
+          uname -m
+          sw_vers
+          echo "runner: $ImageOS / $ImageVersion"
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
 

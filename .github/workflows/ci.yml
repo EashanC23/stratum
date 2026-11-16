@@ -22,12 +22,22 @@ jobs:
     # macOS only, and deliberately arm64: the golden images were rendered with a
     # vendored font on arm64, and tiny-skia's SIMD paths differ between NEON and
     # SSE. An x86_64 runner would compare against pixels generated elsewhere.
-    runs-on: macos-14
+    # `macos-14` resolves to an unsupported configuration on this account
+    # ("macos-14-arm64-us-xl is not supported"), so ask for `macos-latest`,
+    # which is always routable. Pin a concrete label later if the fleet
+    # needs determinism — the "Runner info" step prints what you actually got.
+    runs-on: macos-latest
     timeout-minutes: 20
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Runner info
+        run: |
+          uname -m
+          sw_vers
+          echo "runner: $ImageOS / $ImageVersion"
 
       - name: Install Rust 1.95
         uses: dtolnay/rust-toolchain@stable

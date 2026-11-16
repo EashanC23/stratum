@@ -9,7 +9,6 @@
 
 <!-- PROJECT SHIELDS -->
 [![Rust][rust-shield]][rust-url]
-[![Edition 2024][edition-shield]][edition-url]
 [![Platform macOS][platform-shield]][platform-url]
 [![Tests][tests-shield]][tests-url]
 [![Binary size][binary-shield]][binary-url]
@@ -121,7 +120,7 @@ bitmap per widget, painted from scratch, presented as a `CGImage` on a `CALayer`
 generalised so a widget can live anywhere on any display instead of being pinned
 to the bar.
 
-### Standing on SketchyBar's shoulders
+### Inspirations
 
 None of the interesting ideas here are mine. [SketchyBar][sketchybar] by **Felix
 Kratz** established the model this project copies: one offscreen bitmap per item,
@@ -767,8 +766,6 @@ Local project — no public repository or issue tracker yet. Start with
 <!-- MARKDOWN LINKS & IMAGES -->
 [rust-shield]: https://img.shields.io/badge/rust-1.95%2B-orange?style=for-the-badge&logo=rust
 [rust-url]: https://www.rust-lang.org/
-[edition-shield]: https://img.shields.io/badge/edition-2024-orange?style=for-the-badge
-[edition-url]: https://doc.rust-lang.org/edition-guide/rust-2024/index.html
 [platform-shield]: https://img.shields.io/badge/platform-macOS%2011%2B-lightgrey?style=for-the-badge&logo=apple
 [platform-url]: https://www.apple.com/macos/
 [tests-shield]: https://img.shields.io/badge/tests-61%20passing-brightgreen?style=for-the-badge

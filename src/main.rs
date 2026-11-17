@@ -66,7 +66,7 @@ fn main() {
         "live" => cmd_live(&args[1..]),
         "golden" => cmd_golden(&args[1..]),
         "nowplaying" => {
-            cmd_nowplaying();
+            cmd_nowplaying(args.get(1).map(String::as_str));
             Ok(())
         }
         "config" => cmd_config(&args[1..]),
@@ -969,8 +969,17 @@ unsafe extern "C" {
 /// be a widget script. Uses MediaRemote (see src/nowplaying.rs), so no
 /// third-party binary is involved.
 #[cfg(target_os = "macos")]
-fn cmd_nowplaying() {
+fn cmd_nowplaying(arg: Option<&str>) {
     use stratum::nowplaying;
+    if arg == Some("--why") {
+        let d = nowplaying::diagnose();
+        println!("api_present={}", d.api_present);
+        println!("clients={}", d.clients);
+        println!("dict_present={}", d.dict_present);
+        println!("playing={}", d.playing);
+        println!("verdict={}", d.verdict());
+        return;
+    }
     match nowplaying::current() {
         Ok(Some(t)) => {
             println!("state={}", if t.playing { "playing" } else { "paused" });
@@ -1000,7 +1009,7 @@ fn cmd_nowplaying() {
 
 /// Non-macOS builds have no MediaRemote.
 #[cfg(not(target_os = "macos"))]
-fn cmd_nowplaying() {
+fn cmd_nowplaying(_arg: Option<&str>) {
     println!("state=error");
     println!("label=nowplaying is macOS-only (MediaRemote)");
 }

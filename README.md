@@ -217,7 +217,7 @@ stratum run      [cfg] [--seconds N] [--fps N] [-o DIR]
 stratum click    [cfg] <x> <y>      hit-test a point, run that widget's click script
 stratum live     [cfg] [--seconds N] [--fps N] [--level L] [--snapshot DIR]
 stratum golden   [cfg] [-o DIR]     render the golden corpus
-stratum nowplaying                 the current track as key=value (MediaRemote)
+stratum nowplaying [--why]         current track as key=value; --why explains an empty answer
 stratum fixture  [DIR]              demo assets
 stratum dump     <cfg>              parse and print the config back (schema check)
 ```
@@ -559,7 +559,7 @@ Script: `file` or inline `command`, `interpreter`, `interval`, `timeout_ms`,
 | a chart with text over it | `layout = "stack"`, graph first then text (later = on top) |
 | a clickable state toggle | `click_through = false`, `on = ["click"]`, `interval = 0.0` |
 | a widget that follows the active app | `on = ["space-change"]` and read `STRATUM_EVENT` |
-| what is playing right now | `command = "stratum nowplaying"` — the OS Now Playing dictionary, no third-party CLI |
+| what is playing right now | `command = "stratum nowplaying"` — the OS Now Playing dictionary; on macOS 26 that is gated for CLI callers, so chain it with the app's AppleScript or Last.fm — HANDOFF §5 has the ordering and `--why` explains an empty answer |
 
 <!-- SCRIPTS -->
 ## Scripts

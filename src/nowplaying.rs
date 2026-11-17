@@ -64,6 +64,7 @@ const CF_DOUBLE: i64 = 13; // kCFNumberDoubleType
 
 #[link(name = "CoreFoundation", kind = "framework")]
 unsafe extern "C" {
+    fn CFArrayGetCount(array: *const c_void) -> isize;
     fn CFDictionaryGetValue(dict: *const c_void, key: *const c_void) -> *const c_void;
     fn CFStringGetCString(s: *const c_void, buf: *mut c_char, size: isize, encoding: u32) -> bool;
     fn CFNumberGetValue(n: *const c_void, kind: i64, out: *mut c_void) -> bool;
@@ -82,6 +83,10 @@ unsafe extern "C" {
 
 /// `void MRMediaRemoteGetNowPlayingInfo(dispatch_queue_t, void (^)(CFDictionaryRef))`
 type GetNowPlayingInfo = unsafe extern "C" fn(*mut c_void, *mut c_void);
+/// `void MRMediaRemoteGetNowPlayingClients(dispatch_queue_t, void (^)(CFArrayRef))`
+type GetClients = unsafe extern "C" fn(*mut c_void, *mut c_void);
+/// `void MRMediaRemoteGetNowPlayingApplicationIsPlaying(dispatch_queue_t, void (^)(Boolean))`
+type GetIsPlaying = unsafe extern "C" fn(*mut c_void, *mut c_void);
 
 // ------------------------------------------------------------- reading ------
 
@@ -289,6 +294,132 @@ unsafe fn key_ref(symbol: &str) -> Option<*const c_void> {
     }
 }
 
+// ------------------------------------------------------------ diagnostics ---
+
+/// What the OS actually told us. Exists because "nothing playing" and "the OS
+/// refuses to answer" look identical from the outside.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Diagnose {
+    /// The framework opened and the symbol resolved.
+    pub api_present: bool,
+    /// How many media clients the daemon reports (0 while audio is playing is
+    /// the signature of the macOS 26 gate on unentitled callers).
+    pub clients: usize,
+    /// `MRMediaRemoteGetNowPlayingInfo` handed us a dictionary.
+    pub dict_present: bool,
+    /// `MRMediaRemoteGetNowPlayingApplicationIsPlaying`.
+    pub playing: bool,
+}
+
+impl Diagnose {
+    pub fn verdict(&self) -> &'static str {
+        if !self.api_present {
+            "MediaRemote is not loadable on this macOS"
+        } else if self.dict_present {
+            "the OS is serving now-playing data"
+        } else if self.clients == 0 {
+            "no media client is registered with the daemon; macOS does not expose \
+             now-playing to this unentitled process (a signed app or a player that \
+             registers can, and MediaRemote would then answer)"
+        } else {
+            "clients are registered but no metadata was served"
+        }
+    }
+}
+
+/// Ask the OS the three questions that separate "nothing playing" from "gated".
+pub fn diagnose() -> Diagnose {
+    let mut d = Diagnose {
+        api_present: false,
+        clients: 0,
+        dict_present: false,
+        playing: false,
+    };
+    let Some(handle) = open_framework() else {
+        return d;
+    };
+    d.api_present = true;
+
+    if let Some(f) = symbol::<GetClients>(handle, "MRMediaRemoteGetNowPlayingClients") {
+        let (tx, rx) = mpsc::channel::<usize>();
+        let block = block2::RcBlock::new(move |clients: *const c_void| {
+            // SAFETY: the daemon hands us a CFArrayRef (or null) for this call.
+            let n = if clients.is_null() {
+                0
+            } else {
+                // SAFETY: non-null CFArrayRef handed to us by the daemon for this
+                // call; counting it neither copies nor outlives the callback.
+                unsafe { CFArrayGetCount(clients).max(0) as usize }
+            };
+            let _ = tx.send(n);
+        });
+        let _ = with_queue(|q| {
+            // SAFETY: `q` is a live queue and the block pointer is valid for the
+            // call; the block owns its sender and is dropped when this closure ends.
+            unsafe { f(q, block2::RcBlock::as_ptr(&block) as *mut c_void) }
+        });
+        d.clients = rx.recv_timeout(Duration::from_millis(800)).unwrap_or(0);
+    }
+
+    if let Some(f) =
+        symbol::<GetIsPlaying>(handle, "MRMediaRemoteGetNowPlayingApplicationIsPlaying")
+    {
+        let (tx, rx) = mpsc::channel::<bool>();
+        let block = block2::RcBlock::new(move |playing: u8| {
+            let _ = tx.send(playing != 0);
+        });
+        let _ = with_queue(|q| {
+            // SAFETY: as above — live queue, valid block pointer for the call.
+            unsafe { f(q, block2::RcBlock::as_ptr(&block) as *mut c_void) }
+        });
+        d.playing = rx.recv_timeout(Duration::from_millis(800)).unwrap_or(false);
+    }
+
+    if let Some(f) = symbol::<GetNowPlayingInfo>(handle, "MRMediaRemoteGetNowPlayingInfo") {
+        let (tx, rx) = mpsc::channel::<bool>();
+        let block = block2::RcBlock::new(move |dict: *const c_void| {
+            let _ = tx.send(!dict.is_null());
+        });
+        let _ = with_queue(|q| {
+            // SAFETY: as above — live queue, valid block pointer for the call.
+            unsafe { f(q, block2::RcBlock::as_ptr(&block) as *mut c_void) }
+        });
+        d.dict_present = rx.recv_timeout(Duration::from_millis(800)).unwrap_or(false);
+    }
+
+    d
+}
+
+fn open_framework() -> Option<*mut c_void> {
+    let path = CString::new(FRAMEWORK).ok()?;
+    // SAFETY: a live CString and a documented loader call; null is checked.
+    let handle = unsafe { dlopen(path.as_ptr(), RTLD_LAZY) };
+    (!handle.is_null()).then_some(handle)
+}
+
+fn symbol<T: Copy>(handle: *mut c_void, name: &str) -> Option<T> {
+    let sym = CString::new(name).ok()?;
+    // SAFETY: as above — the string outlives the call and the result is checked.
+    let raw = unsafe { dlsym(handle, sym.as_ptr()) };
+    if raw.is_null() {
+        return None;
+    }
+    // SAFETY: the caller names the exact C signature the symbol has.
+    Some(unsafe { std::mem::transmute_copy::<*mut c_void, T>(&raw) })
+}
+
+/// Create a private serial queue, run `f` with it, and let libdispatch reap it.
+fn with_queue<F: FnOnce(*mut c_void)>(f: F) -> Option<()> {
+    let label = CString::new("dev.stratum.nowplaying.diag").ok()?;
+    // SAFETY: a live label and null attributes; null result is checked.
+    let queue = unsafe { dispatch_queue_create(label.as_ptr(), std::ptr::null()) };
+    if queue.is_null() {
+        return None;
+    }
+    f(queue);
+    Some(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -322,5 +453,38 @@ mod tests {
         let t = parse_json(r#"{"title":"x","elapsed":400.0,"duration":300.0}"#).expect("parse");
         assert_eq!(t.remaining(), 0.0);
         assert_eq!(t.progress_percent(), 100.0);
+    }
+
+    #[test]
+    fn verdict_explains_the_gated_case() {
+        let gated = Diagnose {
+            api_present: true,
+            clients: 0,
+            dict_present: false,
+            playing: false,
+        };
+        assert!(
+            gated.verdict().contains("unentitled"),
+            "{}",
+            gated.verdict()
+        );
+        let ok = Diagnose {
+            api_present: true,
+            clients: 2,
+            dict_present: true,
+            playing: true,
+        };
+        assert!(ok.verdict().contains("serving"), "{}", ok.verdict());
+        let missing = Diagnose {
+            api_present: false,
+            clients: 0,
+            dict_present: false,
+            playing: false,
+        };
+        assert!(
+            missing.verdict().contains("not loadable"),
+            "{}",
+            missing.verdict()
+        );
     }
 }

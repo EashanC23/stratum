@@ -539,6 +539,34 @@ convention used by the shipped `credits` widget (OpenRouter balance):
 Because a script's stdout is the only contract, a widget can show an API-backed
 value without the runtime knowing anything about HTTP, JSON, or auth.
 
+### Now playing, and why it is a chain
+
+`src/nowplaying.rs` calls `MRMediaRemoteGetNowPlayingInfo` — MediaRemote is the
+same source Control Centre's Now Playing panel uses, and it needs no third-party
+CLI. On macOS 26 the daemon answers *unentitled CLI callers* with a NULL
+dictionary and zero clients even while audio is playing (verified with a raw C
+probe against playing video: `clients=0`, `MRMediaRemoteGetNowPlayingApplicationIsPlaying`
+= NO). `stratum nowplaying --why` reports exactly that:
+
+```text
+api_present=true
+clients=0
+dict_present=false
+playing=false
+verdict=no media client is registered with the daemon; macOS does not expose
+now-playing to this unentitled process …
+```
+
+So the practical widget is a chain, and every hop is labelled with `source=`:
+
+1. **media** — MediaRemote, when the OS serves it (signed app, or a future macOS).
+2. **music / spotify** — that app's AppleScript, still no third-party binary.
+3. **lastfm** — the API's `nowplaying` flag, which sees browser playback too.
+4. **cache** — the last track, marked `state=last`.
+
+That ordering is what makes a "now playing" widget honest on macOS 26: the
+inbuilt source is tried first, and the fallback says which one answered.
+
 ### Script files
 
 `command` is an inline `sh -c` line. `file` points at a script instead, and is
@@ -889,7 +917,7 @@ Known remaining costs, stated rather than hidden:
     cargo run -- render cfg.toml -o /tmp/x --scale 1 --no-scripts --event space-change
     cargo run -- run cfg.toml --seconds 5 --fps 10      # non-blocking loop
     cargo run -- click cfg.toml 750 940                 # hit-test + click + drain
-    stratum nowplaying                         # current track as key=value
+    stratum nowplaying [--why]                 # current track; --why explains emptiness
     stratum service install                    # widgets at login (LaunchAgent)
     stratum live --inject-click 300 40         # test hook: synthetic click
     cargo run --release -- live examples/widgets.toml   # widgets on the desktop

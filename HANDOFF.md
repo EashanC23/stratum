@@ -567,6 +567,27 @@ So the practical widget is a chain, and every hop is labelled with `source=`:
 That ordering is what makes a "now playing" widget honest on macOS 26: the
 inbuilt source is tried first, and the fallback says which one answered.
 
+Four shell-level traps cost real debugging on that widget, and any script that
+parses app metadata will meet them:
+
+1. **`set -- $(...)` splits on spaces, not just newlines.** `"Mike Sherm"` becomes
+   two fields and every later field shifts by one — the title shows up truncated
+   and the artist is the rest of the title. Join fields with a byte metadata
+   cannot contain (ASCII 31, unit separator) and split on that byte.
+2. **`$(( 7 > 6 ? 7 - 6 : 0 ))` uses constants, not `$7`/`$6`.** The parameters
+   need the `$`. Symptom: a donut reporting 85% for a track that is 20% through.
+3. **An AppleEvent to a process without Automation permission *hangs*** until the
+   2-minute default timeout, so a stuck player costs a widget two minutes. Bound
+   every call with `with timeout of 3 seconds`, and let the chain move on.
+4. **TCC attributes AppleEvents to the responsible process.** `stratum` has
+   `com.apple.Music` granted (visible in the TCC database), while a shell without
+   that grant waits on a prompt it cannot display — the same script behaves
+   differently under launchd and in a terminal. Test the daemon path through the
+   daemon.
+
+Also: a fixture (`STRATUM_NOWPLAYING_JSON`) must never write the "last track"
+cache, or the widget keeps showing a made-up track as history.
+
 ### Script files
 
 `command` is an inline `sh -c` line. `file` points at a script instead, and is

@@ -565,7 +565,28 @@ So the practical widget is a chain, and every hop is labelled with `source=`:
 4. **cache** — the last track, marked `state=last`.
 
 That ordering is what makes a "now playing" widget honest on macOS 26: the
-inbuilt source is tried first, and the fallback says which one answered.
+inbuilt source is tried first, and the fallback says which one answered. The
+script writes the winning hop to `~/.cache/stratum/nowplaying.source`, so
+"which source answered?" is a `cat` away instead of a guess.
+
+Two hazards in that AppleScript hop, both paid for:
+
+- **Never split metadata on whitespace.** `set -- $(… | tr '\t' '\n')` splits on
+  spaces *and* newlines, so "Side N**** Anthem" by "Mike Sherm" became
+  `title=Side`, `artist=N****`, `album=Anthem` — and a `*` in a title could even
+  glob-expand. Fields are joined with ASCII 31 (unit separator), which cannot
+  occur in a track name, and read back with `awk -F'\037'`. Verified with a fake
+  `osascript` on PATH that returns a space-laden title.
+- **Bound the Apple Event.** Music can take two minutes to answer an AE
+  (`-1712`); every call is wrapped in `with timeout of 3 seconds` so a stuck
+  player costs 3 s and falls through to the next hop instead of stalling the
+  widget.
+
+Browser playback is the other half of the picture: Chromium-based browsers
+(Vivaldi, Chrome) register **no** media client with `mediaremoted`, so both the
+MediaRemote hop and any app-level read miss them — that case only resolves
+through Last.fm. Safari and Music do register (Music is readable by AppleScript
+even when MediaRemote refuses the CLI).
 
 Four shell-level traps cost real debugging on that widget, and any script that
 parses app metadata will meet them:

@@ -42,6 +42,7 @@ usvg = "0.50.0"
 # Live (on-screen) presenter. The core stays portable: these are only pulled
 # in on macOS, and src/live.rs is cfg(target_os = "macos").
 [target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6.2"
 objc2 = "0.6.5"
 objc2-app-kit = { version = "0.3.2", features = [
   "NSApplication",

@@ -70,6 +70,7 @@ windowed presenter is the one big piece left (Milestone 5).
 | `src/graph.rs` | 205 | donut / line / bar charts as pure functions |
 | `src/icon.rs` | 194 | SVG (resvg) + PNG sources, size-normalized, tinted, cached by (path, mtime, size, tint) |
 | `src/text.rs` | 185 | fontdue glyph raster + coverage blending, measurement, truncation |
+| `src/nowplaying.rs` | 300 | MediaRemote FFI: the system Now Playing dictionary, no third-party CLI |
 | `src/runtime.rs` | 552 | async tick loop, worker dispatch, hit-testing/click, dirty tracking |
 | `src/script.rs` | 384 | script execution, timeout, parsing, scheduler, worker pool |
 | `src/config.rs` | 168 | TOML/JSON loading + validation |
@@ -888,6 +889,7 @@ Known remaining costs, stated rather than hidden:
     cargo run -- render cfg.toml -o /tmp/x --scale 1 --no-scripts --event space-change
     cargo run -- run cfg.toml --seconds 5 --fps 10      # non-blocking loop
     cargo run -- click cfg.toml 750 940                 # hit-test + click + drain
+    stratum nowplaying                         # current track as key=value
     stratum service install                    # widgets at login (LaunchAgent)
     stratum live --inject-click 300 40         # test hook: synthetic click
     cargo run --release -- live examples/widgets.toml   # widgets on the desktop

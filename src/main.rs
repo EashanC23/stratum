@@ -26,6 +26,7 @@ usage:
   stratum click  [config.toml] <x> <y> [--event NAME] [-o <dir>]
   stratum live   [config.toml] [--seconds N] [--fps N] [--level L] [--snapshot DIR]
   stratum golden [config.toml] [-o DIR]   render the golden corpus (default tests/golden)
+  stratum nowplaying                   print the current track as key=value lines
   stratum fixture [<dir>]        write examples/star.svg + a demo PNG icon
   stratum dump   <config.toml>   print the parsed config back out (round-trip check)
 
@@ -64,6 +65,10 @@ fn main() {
         "click" => cmd_click(&args[1..]),
         "live" => cmd_live(&args[1..]),
         "golden" => cmd_golden(&args[1..]),
+        "nowplaying" => {
+            cmd_nowplaying();
+            Ok(())
+        }
         "config" => cmd_config(&args[1..]),
         "init" => cmd_init(&args[1..]),
         "service" => cmd_service(&args[1..]),
@@ -201,6 +206,9 @@ fn load(opts: &Opts) -> Result<(Config, String), String> {
     if opts.no_composite {
         cfg.output.composite = false;
     }
+    // `render` takes a picture, not a movie: with animation on, the loop would
+    // repaint each widget for `animation_ms` and write the file a dozen times.
+    cfg.animation_ms = 0.0;
     // Output dir: `-o` wins, else the config's. `~` is expanded and a relative
     // path is taken from the config file's directory, like every other path.
     let base = path
@@ -955,6 +963,46 @@ unsafe extern "C" {
     println!();
     println!("try: stratum config && stratum render");
     Ok(())
+}
+
+/// `stratum nowplaying` — the system's Now Playing info as `key=value`, ready to
+/// be a widget script. Uses MediaRemote (see src/nowplaying.rs), so no
+/// third-party binary is involved.
+#[cfg(target_os = "macos")]
+fn cmd_nowplaying() {
+    use stratum::nowplaying;
+    match nowplaying::current() {
+        Ok(Some(t)) => {
+            println!("state={}", if t.playing { "playing" } else { "paused" });
+            println!("title={}", t.title);
+            println!("artist={}", t.artist);
+            println!("album={}", t.album);
+            println!("elapsed={:.0}", t.elapsed);
+            println!("duration={:.0}", t.duration);
+            println!("remaining={:.0}", t.remaining());
+            println!("progress={:.0}", t.progress_percent());
+            println!("label={}", t.one_line());
+            // The play/pause glyph the mono system font can actually draw.
+            println!("mark={}", if t.playing { ">" } else { "||" });
+        }
+        Ok(None) => {
+            println!("state=idle");
+            println!("label=nothing playing");
+            println!("mark=");
+        }
+        Err(e) => {
+            println!("state=error");
+            println!("label={e}");
+            eprintln!("nowplaying: {e}");
+        }
+    }
+}
+
+/// Non-macOS builds have no MediaRemote.
+#[cfg(not(target_os = "macos"))]
+fn cmd_nowplaying() {
+    println!("state=error");
+    println!("label=nowplaying is macOS-only (MediaRemote)");
 }
 
 /// Render the golden corpus (1x and 2x per widget) into a directory.

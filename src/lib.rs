@@ -21,6 +21,8 @@ pub mod icon;
 #[cfg(target_os = "macos")]
 pub mod live;
 pub mod model;
+#[cfg(target_os = "macos")]
+pub mod nowplaying;
 pub mod present;
 pub mod runtime;
 pub mod script;

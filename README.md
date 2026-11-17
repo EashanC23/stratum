@@ -56,6 +56,7 @@
     </li>
     <li><a href="#usage">Usage</a></li>
     <li><a href="#configuration">Configuration</a></li>
+    <li><a href="#example-widgets">Example Widgets</a></li>
     <li>
       <a href="#creating-a-widget">Creating a Widget</a>
       <ul>
@@ -66,7 +67,9 @@
         <li><a href="#5-see-it-without-going-live">5. See it without going live</a></li>
         <li><a href="#6-put-it-on-the-desktop">6. Put it on the desktop</a></li>
         <li><a href="#7-make-it-interactive">7. Make it interactive</a></li>
+        <li><a href="#8-start-from-one-that-already-works">8. Start from one that already works</a></li>
         <li><a href="#field-reference">Field reference</a></li>
+        <li><a href="#when-it-does-not-show-up">When it does not show up</a></li>
         <li><a href="#recipes">Recipes</a></li>
       </ul>
     </li>
@@ -325,6 +328,36 @@ Placement and stacking, in one place:
 | `click_through` | `true` (default) = clicks reach what is underneath |
 | `layer` | z-order among widgets at the same level |
 
+<!-- EXAMPLES -->
+## Example Widgets
+
+Two sets ship with the repo, and both are rendered by the same command:
+
+```sh
+stratum fixture                             # star.svg + diamond.png for the tour
+stratum render examples/widgets.toml        # seven widgets, one file, inline commands
+stratum render examples/desktop/config.toml # the real tree: 5 widgets + 5 scripts
+```
+
+`examples/desktop/` is not a mock-up — it is the configuration this project runs
+day to day, copied in whole: a `config.toml`, five widget files, five scripts and
+two assets. It is the fastest way to see how a multi-widget tree is laid out, and
+the scripts double as worked examples of the data contract.
+
+| widget | what it shows | needs |
+|---|---|---|
+| `clock` | `{{time}}`, one-second interval, no background | nothing |
+| `load` | a line chart fed by a **Rust** script, compiled on first run | `cargo` |
+| `credits` | API-backed donut, `weight = 0.8`, readable failure states | an OpenRouter key, or nothing to see the error state |
+| `lastfm` | icon + label + "3m ago", one API call | a Last.fm key and user |
+| `nowplaying` | progress donut + track, from a four-source chain | nothing |
+
+Neither set needs a key to *render*: `credits` prints `label=no API key`,
+`lastfm` prints `label=lastfm: no key/user`, and `nowplaying` says
+`nothing playing yet`. A widget that degrades to a sentence is the pattern to
+copy — never a template half-filled with blanks. [examples/README.md](examples/README.md)
+has the per-widget notes.
+
 <!-- CREATING A WIDGET -->
 ## Creating a Widget
 
@@ -518,6 +551,20 @@ interval = 0.0                   # only run on the event
 on = ["click"]                   # also: hover, scroll, space-change, display-change
 ```
 
+### 8. Start from one that already works
+
+The five widgets in `examples/desktop/` are complete, and each one teaches a
+different thing. Copy the file, rename the `id`, point `script.file` at your own
+script, and it runs:
+
+| copy | to learn |
+|---|---|
+| `examples/desktop/widgets/clock.toml` | the smallest possible widget: one text element, one interval |
+| `examples/desktop/widgets/credits.toml` | a donut with `weight` (partial ring) and no background plate |
+| `examples/desktop/widgets/load.toml` | a script written in another language (`load-rs/src/main.rs`) |
+| `examples/desktop/widgets/lastfm.toml` | icon + label + a second, quieter text element |
+| `examples/desktop/widgets/nowplaying.toml` | a donut driven by two values, plus `on = ["space-change"]` |
+
 ### Field reference
 
 Widget level:
@@ -546,6 +593,18 @@ Per element: **text** takes `value`, `kind` (`static`/`dynamic`), `value_key`,
 
 Script: `file` or inline `command`, `interpreter`, `interval`, `timeout_ms`,
 `format` (`keyvalue`/`json-lines`), `on` (event names).
+
+### When it does not show up
+
+| symptom | what to check |
+|---|---|
+| the widget is drawn but empty | run the script by hand (`./scripts/cpu.sh`). No output, no values — `stratum` shows the template's blank, not an error |
+| `spawn failed: No such file or directory` | the script path did not resolve. `stratum config --search` lists resolved `widget_dirs`/`script_dirs`; a path is resolved beside the widget file first, then in `script_dirs` |
+| text is cut off | `max_chars` on the element, or a fixed `frame.w` that is too small |
+| it hides behind app windows | that is the default; add `always_on_top = true` |
+| clicks do nothing | `click_through = false` **and** `on = ["click"]` — pass-through is the default |
+| nothing repaints when the script's output changes | the value is identical every run; `stratum render` (one shot) vs `stratum run --seconds 10` (polling) shows the difference |
+| the daemon behaves differently from your shell | it runs with launchd's environment. `stratum live` in a terminal, then `stratum service status` to compare |
 
 ### Recipes
 
@@ -596,8 +655,9 @@ that happens. Widgets repaint only when their values actually change.
 ## Testing
 
 ```sh
-cargo test                     # 61 tests: 49 unit, 9 CLI, 2 golden (+1 binary)
+cargo test                     # 70 tests: 54 unit, 9 CLI, 4 examples, 2 golden (+1 doctest)
 cargo test --test cli          # drives the real binary: exit codes, PNGs, dump round-trip
+cargo test --test examples     # the docs are executed: both example trees render offline
 cargo test --test golden       # compares 9 widgets × 1x/2x against committed PNGs
 cargo test --test golden -- --ignored update_goldens   # regenerate, deliberately
 ```
@@ -738,9 +798,7 @@ learn, inspire, and create. Any contributions you make are **greatly appreciated
 <!-- LICENSE -->
 ## License
 
-No license has been chosen for this project yet. Until one is added, the default
-is "all rights reserved" — pick a license (`LICENSE` file plus a line in
-`Cargo.toml`) before publishing or sharing binaries.
+MIT — see [LICENSE](LICENSE). Use it, fork it, ship binaries built from it.
 
 The vendored test font, `tests/golden/fonts/JetBrainsMono-Regular.ttf`, is
 JetBrains Mono under the SIL Open Font License 1.1; its licence ships beside it.
@@ -770,7 +828,7 @@ Local project — no public repository or issue tracker yet. Start with
 [rust-url]: https://www.rust-lang.org/
 [platform-shield]: https://img.shields.io/badge/platform-macOS%2011%2B-lightgrey?style=for-the-badge&logo=apple
 [platform-url]: https://www.apple.com/macos/
-[tests-shield]: https://img.shields.io/badge/tests-61%20passing-brightgreen?style=for-the-badge
+[tests-shield]: https://img.shields.io/badge/tests-70%20passing-brightgreen?style=for-the-badge
 [tests-url]: tests/
 [binary-shield]: https://img.shields.io/badge/release-3.7%20MB-blue?style=for-the-badge
 [binary-url]: HANDOFF.md#12-performance-and-resource-profile

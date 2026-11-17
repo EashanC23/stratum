@@ -454,7 +454,9 @@ fn resolve_widget_paths(w: &mut WidgetSpec, base: &Path, script_dirs: &[PathBuf]
         tried.extend(script_dirs.iter().map(|d| d.join(file)));
         tried.push(file.to_path_buf());
         if let Some(found) = tried.iter().find(|p| p.is_file()) {
-            spec.file = Some(found.clone());
+            // Absolute, so a script still runs when the child's cwd is its own
+            // directory. A relative config path would otherwise break the spawn.
+            spec.file = Some(std::path::absolute(found).unwrap_or_else(|_| found.clone()));
         }
         // Not found: leave it relative so the error names what was asked for.
     }
@@ -470,7 +472,7 @@ fn resolve_widget_paths(w: &mut WidgetSpec, base: &Path, script_dirs: &[PathBuf]
             tried.extend(script_dirs.iter().map(|d| d.join(path)));
             tried.push(path.clone());
             if let Some(found) = tried.iter().find(|p| p.is_file()) {
-                *slot = Some(found.clone());
+                *slot = Some(std::path::absolute(found).unwrap_or_else(|_| found.clone()));
             }
         }
     }

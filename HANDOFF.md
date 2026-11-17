@@ -266,6 +266,41 @@ file. Writing `widget_dirs` after `[output]` silently files it under `output`.
 stratum rejects unknown keys in `OutputCfg` so that mistake is an error rather
 than a config that loads zero widgets.
 
+### Adding a widget (the runbook)
+
+1. `~/.config/stratum/widgets/<id>.toml` — one file, one `[[widget]]`, unique `id`.
+2. Place it: `anchor` + `frame` (offset from that corner). Omit `w`/`h` to
+   auto-size; give them when the slot must not jitter.
+3. Declare elements in paint order — `text`, `icon`, `graph` — under a `layout`
+   (`row` / `column` / `stack`), with `padding` and `gap`.
+4. Write the data source: any program printing `key=value` lines. Run it by hand
+   first — a widget cannot show a value the script never printed.
+5. Point `script.file` at it (resolved beside the widget file, then
+   `script_dirs`), and give `interval` seconds, or `interval = 0` plus
+   `on = ["click"]` for a purely event-driven widget.
+6. `stratum render <cfg>` writes the PNGs. `stratum config <cfg> --search` when a
+   path does not resolve; `stratum click <cfg> x y` for hit-testing.
+7. `stratum live`, then `stratum service install` once it is right.
+8. When in doubt, copy one that works: `examples/desktop/widgets/` — five
+   complete widgets, one per pattern (smallest, partial donut, Rust script, icon
+   + label, two-value donut).
+
+Two path bugs this runbook caught, both fixed and guarded now:
+
+- **Relative script paths broke the spawn.** `invocation()` runs the child with
+  `cwd` set to the script's own directory, so a relative program path was
+  re-resolved against that directory and every script failed with
+  `spawn failed: No such file or directory`. It only appeared when the config was
+  loaded from a relative path — exactly `stratum render examples/desktop/config.toml`.
+  `std::path::absolute` is now applied when paths resolve (config) and again in
+  `invocation()` (defensive), so a script runs from any working directory.
+- **The composite stacked every past paint of a widget.** `PngPresenter::present`
+  pushed a new entry per call, and a widget is presented at least twice (an empty
+  first paint, then again once its script answers). The composite drew the stale
+  copy under the fresh one: ghosted text, and an icon displaced into the middle of
+  a label. `present` now replaces the entry for that id;
+  `composite_keeps_only_the_newest_paint_of_a_widget` is the guard.
+
 ---
 
 ## 4. Layout rules
@@ -501,7 +536,14 @@ key windows by (widget, display).
 
 ## 7. Testing
 
-Three tiers, cheapest first.
+Four tiers, cheapest first.
+
+### Tier 0 — the example trees, `tests/examples.rs`
+
+Documentation is executed, not just read: both example trees render with
+`--no-scripts` (no network, no credentials), the XDG tree reports its five
+widgets, and every `examples/desktop/widgets/*.toml` parses on its own through
+`dump`. A widget file people copy that stops parsing is a documentation bug.
 
 
 ### Script runtime guarantees
@@ -642,7 +684,7 @@ so `~/.config` stays configuration instead of growing a `target/` tree. `timeout
 because a Rust script's first run includes a compile; scripts run off the render
 thread, so a slow first tick costs a repaint, not a stalled desktop.
 
-### Tier 1 — unit tests, in-module (49)
+### Tier 1 — unit tests, in-module (54)
 
 They live beside the code they test (`#[cfg(test)] mod tests`), so adding a case
 is one function in the file you are already editing.

@@ -1,0 +1,8 @@
+[package]
+name = "load-rs"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "load-rs"
+path = "src/main.rs"

@@ -1,5 +1,7 @@
 /target
 /out
+examples/*/out/
+examples/desktop/scripts/load-rs/target/
 
 # ~/.gitignore on this machine ignores everything at the repo root ("/*"), which
 # would silently drop new top-level dirs from commits. Re-include what the project

@@ -1,0 +1,41 @@
+# Last.fm — now playing, or the last scrobble, from the API.
+#
+# Needs a key and a username:
+#   ~/.config/stratum/secrets/lastfm.key    (API key, chmod 600)
+#   ~/.config/stratum/secrets/lastfm.user
+# Get a key at https://www.last.fm/api/account/create
+#
+# Without them the widget still runs and says what is missing.
+
+[[widget]]
+id = "lastfm"
+anchor = "top-center"
+frame = { x = 0, y = 18 }
+gap = 7
+layout = "row"
+
+[[widget.elements]]
+type = "icon"
+svg = "../assets/music.svg"
+size = 14
+tint = "#eb5757"
+
+[[widget.elements]]
+type = "text"
+value = "{{label}}"
+kind = "dynamic"
+font = "mono"
+size = 12
+color = "#e6e6f0"
+
+[[widget.elements]]
+type = "text"
+value = "{{when}}"          # "3m ago" when it is a scrobble, blank when live
+kind = "dynamic"
+font = "mono"
+size = 10
+color = "#6b6b78"
+
+[widget.script]
+file = "lastfm.sh"
+interval = 30.0

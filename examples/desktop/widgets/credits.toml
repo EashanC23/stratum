@@ -1,0 +1,41 @@
+# OpenRouter credit usage — bottom-right corner, no background.
+#
+# Data comes from scripts/credits.sh, which calls
+# https://openrouter.ai/api/v1/credits and prints:
+#   parts=<used>,<remaining>   -> the two donut slices
+#   pct=25.7  used=25.75  total=100.50  remaining=74.75  label=...
+#
+# No `background` table on purpose: the donut and text float on the desktop.
+# The API key is NOT here — see the header of scripts/credits.sh
+# ($OPENROUTER_API_KEY or ~/.config/stratum/secrets/openrouter.key).
+
+[[widget]]
+id = "credits"
+anchor = "bottom-right"
+frame = { x = 24, y = 24 }
+gap = 7
+layout = "row"
+# Desktop level (the default): app windows cover it. Add `always_on_top = true`
+# if you would rather have it float above applications.
+
+[[widget.elements]]
+type = "graph"
+kind = "donut"
+data_key = "parts"
+weight = 0.8
+thickness = 0.58
+width = 128
+height = 128
+colors = ["#008f6b", "#ffffff2e"]
+
+# [[widget.elements]]
+# type = "text"
+# value = "{{label}}"
+# kind = "dynamic"
+# font = "mono"
+# size = 12
+# color = "#ff8f6b"
+
+[widget.script]
+file = "credits.sh"
+interval = 60.0

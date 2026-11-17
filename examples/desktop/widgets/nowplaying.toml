@@ -1,0 +1,41 @@
+# Now playing, with a source chain (see scripts/nowplaying.sh):
+#   1. media   `stratum nowplaying` → MediaRemote, the OS Now Playing dictionary
+#   2. music   Music.app via AppleScript, when it is the thing playing
+#   3. spotify Spotify via AppleScript
+#   4. lastfm  Last.fm's "now playing" flag — this is what makes it work for
+#              browser playback, where macOS registers no media client at all
+#   5. cache   the last track seen, marked state=last
+#
+# On macOS 26 MediaRemote is gated for unentitled CLI callers, so step 1 returns
+# "nothing playing" even while audio plays; `stratum nowplaying --why` prints the
+# verdict (clients=0, dict_present=false) rather than leaving you guessing.
+
+[[widget]]
+id = "nowplaying"
+anchor = "bottom-center"
+frame = { x = 0, y = 22 }
+gap = 8
+layout = "row"
+# No background: matches the clock widget, and the desktop shows through.
+
+[[widget.elements]]
+type = "graph"
+kind = "donut"
+data_key = "parts"          # "<elapsed>,<remaining>"
+thickness = 0.55
+width = 22
+height = 22
+colors = ["#5ad1a0", "#ffffff26"]
+
+[[widget.elements]]
+type = "text"
+value = "{{label}}"         # "Artist — Title", or "nothing playing"
+kind = "dynamic"
+font = "mono"
+size = 12
+color = "#e6e6f0"
+
+[widget.script]
+file = "nowplaying.sh"
+interval = 5.0
+on = ["space-change"]

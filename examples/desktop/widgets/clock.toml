@@ -1,0 +1,25 @@
+# One widget per file keeps diffs small and ownership obvious.
+#
+# script.file may be a .sh, .py, .rb, .js, .lua, .pl, or a .rs with a sibling
+# Cargo.toml. It runs on `interval` seconds and on any event in `on`.
+
+[[widget]]
+id = "clock"
+anchor = "top-left"
+frame = { x = 24, y = 18 }
+padding = 10
+gap = 6
+layout = "row"
+background = { enabled = false, color = "#0e0e12e6", corner_radius = 9 }
+
+[[widget.elements]]
+type = "text"
+value = "{{time}}"
+kind = "dynamic"
+font = "mono"
+size = 13
+color = "#e6fff0"
+
+[widget.script]
+file = "clock.sh"
+interval = 1.0

@@ -89,6 +89,13 @@ pub struct ScriptRun {
 /// pretending a source file is a program.
 fn invocation(spec: &ScriptSpec) -> Result<Invocation, String> {
     if let Some(file) = &spec.file {
+        // A config loaded from a relative path leaves `file` relative. The child
+        // runs with `cwd` set to the script's own directory, so a relative
+        // program path would be re-resolved against that directory and the spawn
+        // would fail with ENOENT ("spawn failed: No such file or directory").
+        // Absolutise once, here, and every derived path (program, arg, cargo
+        // manifest) is correct from any working directory.
+        let file = &std::path::absolute(file).unwrap_or_else(|_| file.clone());
         if !file.is_file() {
             return Err(format!(
                 "script file {} not found (looked beside the widget, in script_dirs, and relative to the working directory)",

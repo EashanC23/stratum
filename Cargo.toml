@@ -2,6 +2,12 @@
 name = "stratum"
 version = "0.1.0"
 edition = "2024"
+description = "Scriptable desktop widgets for macOS: text, icons and graphs in borderless windows"
+license = "MIT"
+repository = "https://github.com/EashanC23/stratum"
+readme = "README.md"
+keywords = ["widgets", "desktop", "macos", "tiny-skia", "menubar"]
+categories = ["gui"]
 # The version this is developed and tested against; edition 2024 needs 1.85+,
 # but claiming a lower MSRV would be a guess. See README "Prerequisites".
 rust-version = "1.95"

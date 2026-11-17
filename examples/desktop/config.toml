@@ -1,0 +1,28 @@
+# stratum — a real desktop, as the XDG layout wants it.
+#
+# This tree is what `stratum init` produces once you fill it in: one config file,
+# a directory of widget files, a directory of scripts, an assets directory.
+#
+#   stratum render examples/desktop/config.toml            # PNGs into out/
+#   stratum render examples/desktop/config.toml --frames 3
+#   stratum live   examples/desktop/config.toml            # on the desktop
+#   stratum config examples/desktop/config.toml --search   # what resolved
+#
+# Nothing here needs a secret to render: `credits` and `lastfm` print a readable
+# error line when their key is missing (that is the point of the example). Put a
+# key in ~/.config/stratum/secrets/ to see them live.
+
+scale = 2
+
+# Headless render needs a canvas; `stratum live` ignores this and uses the real
+# display. Omit it in your own config unless you want a fixed frame size.
+screen = { x = 0, y = 0, w = 1512, h = 982 }
+
+# Bare keys must precede any [table] — TOML gives everything after a header to
+# that table.
+widget_dirs = ["widgets"]
+script_dirs = ["scripts"]
+
+[output]
+dir = "out"
+composite = true

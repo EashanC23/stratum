@@ -87,12 +87,53 @@ impl Presenter for PngPresenter {
         image
             .save_png(&path)
             .map_err(|e| format!("{}: {e}", path.display()))?;
-        self.written.push((id.to_string(), frame, image.clone()));
+        // Replace rather than push: a widget is presented again whenever its
+        // pixels change, and keeping every version would draw the stale ones
+        // underneath the current one (ghosted text, an icon in the wrong place).
+        let entry = (id.to_string(), frame, image.clone());
+        match self.written.iter_mut().find(|(i, _, _)| i == id) {
+            Some(slot) => *slot = entry,
+            None => self.written.push(entry),
+        }
         Ok(())
     }
 
     fn destroy(&mut self, id: &str) -> Result<(), String> {
         self.written.retain(|(i, _, _)| i != id);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tiny_skia::{Color, Pixmap};
+
+    fn solid(w: u32, h: u32) -> Pixmap {
+        let mut pm = Pixmap::new(w, h).expect("pixmap");
+        pm.fill(Color::WHITE);
+        pm
+    }
+
+    #[test]
+    fn composite_keeps_only_the_newest_paint_of_a_widget() {
+        let dir = std::env::temp_dir().join(format!("stratum-composite-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+
+        let mut p = PngPresenter::new(&dir, Frame::new(0.0, 0.0, 40.0, 20.0), 1.0, true);
+        // First paint: no data yet, so the widget is small and sits at the left.
+        p.present("a", Frame::new(0.0, 0.0, 10.0, 10.0), &solid(10, 10))
+            .expect("first present");
+        // Second paint: values arrived, the widget grew and moved right.
+        p.present("a", Frame::new(20.0, 0.0, 10.0, 10.0), &solid(10, 10))
+            .expect("second present");
+
+        let files = p.finish().expect("composite");
+        let pm = Pixmap::load_png(&files[0]).expect("png");
+        let alpha = |x: u32, y: u32| pm.pixel(x, y).expect("pixel").alpha();
+
+        assert_eq!(alpha(5, 5), 0, "the stale copy must not be composited");
+        assert_eq!(alpha(25, 5), 255, "the newest copy must be composited");
+        std::fs::remove_dir_all(&dir).ok();
     }
 }

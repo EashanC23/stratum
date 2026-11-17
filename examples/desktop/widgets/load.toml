@@ -1,0 +1,32 @@
+# The same thing in Rust: `scripts/load-rs` is a tiny cargo project that
+# prints `key=value` lines. It is compiled on first run (cargo caches it).
+
+[[widget]]
+id = "load"
+anchor = "bottom-left"
+frame = { x = 0, y = 0 }
+padding = 0
+layout = "column"
+gap = 4
+background = { enabled = false, color = "#0e0e12cc", corner_radius = 9 }
+
+[[widget.elements]]
+type = "graph"
+kind = "line"
+data_key = "load"
+width = 200
+height = 40
+thickness = 1.5
+colors = ["#5ad1a0"]
+
+# [[widget.elements]]
+# type = "text"
+# value = "load {{load_text}}"
+# kind = "dynamic"
+# font = "mono"
+# size = 11
+# color = "#5ad1a0"
+#
+[widget.script]
+file = "load-rs/src/main.rs"
+interval = 5.0

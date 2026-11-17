@@ -6,6 +6,11 @@ examples/desktop/scripts/load-rs/target/
 # ~/.gitignore on this machine ignores everything at the repo root ("/*"), which
 # would silently drop new top-level dirs from commits. Re-include what the project
 # actually ships; per-directory .gitignore takes precedence over the global one.
+# Root files too: the same global rule hides new top-level *files*, not just dirs
+# (LICENSE was invisible to `git status` until it was re-included here).
+!/LICENSE
+!/*.md
+!/*.toml
 !/.github/
 !/scripts/
 !/docs/

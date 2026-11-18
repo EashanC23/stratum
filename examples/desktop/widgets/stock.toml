@@ -1,0 +1,45 @@
+# Stock ticker — middle left. A line graph plus one line of text.
+#
+# Data: scripts/stock.sh, which reads Yahoo Finance's chart endpoint (no API
+# key, no account). The symbol lives in that script:
+#
+#     TICKER="${STRATUM_TICKER:-AAPL}"
+#
+# so copy the script for a second ticker, or export STRATUM_TICKER in the
+# daemon's environment. `series` is the comma-separated close prices the graph
+# plots; `label` is the whole sentence, so a failed fetch reads as one line
+# rather than an empty chart with a stray price next to it.
+#
+# 60s, not 1s: intraday bars arrive every five minutes, and a ticker that hammers
+# a public endpoint gets rate-limited.
+
+[[widget]]
+id = "stock"
+anchor = "center-left"
+frame = { x = 24, y = 0 }
+padding = 0
+layout = "column"
+gap = 4
+background = { enabled = false, color = "#0e0e12cc", corner_radius = 9 }
+
+[[widget.elements]]
+type = "graph"
+kind = "line"
+data_key = "series"
+width = 200
+height = 40
+thickness = 1.5
+filled = true
+colors = ["#8ab4f8"]
+
+[[widget.elements]]
+type = "text"
+value = "{{label}}"
+kind = "dynamic"
+font = "mono"
+size = 11
+color = "#8ab4f8"
+
+[widget.script]
+file = "stock.sh"
+interval = 60.0

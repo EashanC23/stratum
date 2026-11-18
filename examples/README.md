@@ -4,8 +4,8 @@ Two sets, for two different jobs.
 
 ## `widgets.toml` — the tour, in one file
 
-Seven widgets, every element type and layout, with **inline** `command` scripts so
-there is nothing to install:
+Eight widgets, every element type and layout, with **inline** `command` scripts so
+there is nothing to install (one of them is deliberately switched off):
 
 ```sh
 stratum fixture                              # writes star.svg + diamond.png
@@ -22,10 +22,11 @@ stratum render examples/widgets.toml --frames 3
 | `battery` | SVG icon tinted at render time + two texts in a `row` |
 | `now` | fixed-size plate, `max_chars` truncation |
 | `toggle` | `interval = 0` + `on = ["click"]`: event-driven, no polling |
+| `off-demo` | `enabled = false`: present in the file, absent from the screen |
 
 ## `desktop/` — the configuration this project actually runs
 
-The real XDG tree: one config file, five widget files, five scripts, two assets.
+The real XDG tree: one config file, six widget files, six scripts, three assets.
 Copy it to `~/.config/stratum/` or point `stratum` at it directly:
 
 ```sh
@@ -40,6 +41,7 @@ stratum live   examples/desktop/config.toml            # on the desktop
 | `load` | line chart fed by **Rust** (`scripts/load-rs`, compiled on first run) | `cargo` |
 | `credits` | OpenRouter credit donut, `weight = 0.8`, no background | `OPENROUTER_API_KEY` or `~/.config/stratum/secrets/openrouter.key` |
 | `lastfm` | now playing / last scrobble + "3m ago" | `LASTFM_API_KEY` + `LASTFM_USER`, or the two files in `~/.config/stratum/secrets/` |
+| `stock` | filled line graph + one label, from an HTTP JSON endpoint | nothing (Yahoo Finance needs no key); `STRATUM_TICKER` picks the symbol |
 | `nowplaying` | progress donut + "Artist — Title", from a source chain | nothing (MediaRemote, then Music/Spotify, then Last.fm) |
 
 None of the scripts are required for the tree to work: `credits.sh` prints

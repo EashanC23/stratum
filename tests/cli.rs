@@ -451,3 +451,55 @@ fn init_writes_a_usable_tree_and_refuses_to_clobber() {
         stderr(&second)
     );
 }
+
+/// A widget can be switched off without deleting its file: it stays in the tree
+/// (so `dump` still validates it) and the runtime skips it.
+const ONE_OFF: &str = r##"
+screen = { x = 0, y = 0, w = 300, h = 200 }
+scale = 2
+
+[[widget]]
+id = "shown"
+[[widget.elements]]
+type = "text"
+value = "visible"
+
+[[widget]]
+id = "hidden"
+enabled = false
+[[widget.elements]]
+type = "text"
+value = "not drawn"
+"##;
+
+#[test]
+fn a_disabled_widget_is_parsed_but_not_rendered() {
+    let dir = scratch("disabled");
+    let cfg = write(&dir, "desk.toml", ONE_OFF);
+    let out = dir.join("out");
+
+    let res = run(&[
+        "render",
+        cfg.to_str().expect("path"),
+        "-o",
+        out.to_str().expect("path"),
+    ]);
+    assert!(res.status.success(), "render failed: {}", stderr(&res));
+    assert!(
+        out.join("shown.png").exists(),
+        "the enabled widget must render"
+    );
+    assert!(
+        !out.join("hidden.png").exists(),
+        "a disabled widget must not be written"
+    );
+
+    // dump reads the file, not the runtime: both widgets are still there.
+    let dump = run(&["dump", cfg.to_str().expect("path")]);
+    assert!(dump.status.success(), "dump failed: {}", stderr(&dump));
+    let text = String::from_utf8_lossy(&dump.stdout).into_owned();
+    assert!(text.contains("id = \"shown\""), "{text}");
+    assert!(text.contains("id = \"hidden\""), "{text}");
+    assert!(text.contains("enabled = false"), "{text}");
+    let _ = std::fs::remove_dir_all(&dir);
+}

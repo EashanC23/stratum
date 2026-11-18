@@ -126,6 +126,12 @@ impl Runtime {
     }
 
     pub fn with_threads(cfg: Config, run_scripts: bool, threads: usize) -> Result<Self, String> {
+        // Drop switched-off widgets here, once: every later pass (layout, hit
+        // test, script scheduling, presenters) then sees only live widgets, and
+        // `dump` / `config --search` still report the disabled ones because they
+        // read the file, not the runtime.
+        let mut cfg = cfg;
+        cfg.widgets.retain(|w| w.enabled);
         let text = crate::golden::text_engine_for(&cfg)?;
         Ok(Runtime {
             cfg,
@@ -163,6 +169,10 @@ impl Runtime {
     /// dirty, and the ids that no longer exist are returned so the presenter can
     /// close their windows.
     pub fn reload(&mut self, cfg: crate::config::Config) -> Vec<String> {
+        // Same filter as construction, so toggling `enabled` off closes the
+        // window: the id is absent from `keep`, so it comes back in `removed`.
+        let mut cfg = cfg;
+        cfg.widgets.retain(|w| w.enabled);
         let keep: HashSet<String> = cfg.widgets.iter().map(|w| w.id.clone()).collect();
         let removed: Vec<String> = self
             .cfg
@@ -588,6 +598,7 @@ mod tests {
                 ..Default::default()
             },
             click_through: true,
+            enabled: true,
             always_on_top: false,
             elements: vec![Element::Text(TextSpec {
                 value: "hello".into(),
@@ -697,6 +708,39 @@ mod tests {
         assert_eq!(rt.values("t").and_then(|v| v.get("v")), Some("1"));
         // Two paints: the empty first frame, then the value arriving.
         assert!(painted.len() >= 2, "painted {painted:?}");
+    }
+
+    #[test]
+    fn a_widget_can_be_switched_off_and_back_on() {
+        let cfg = Config {
+            screen: Frame::new(0.0, 0.0, 400.0, 300.0),
+            ..Default::default()
+        };
+        let with = |off: bool| {
+            let mut cfg = cfg.clone();
+            let mut a = text_widget("a");
+            a.frame = Frame::new(10.0, 10.0, 100.0, 40.0);
+            let mut b = text_widget("b");
+            b.frame = Frame::new(10.0, 200.0, 100.0, 40.0);
+            b.enabled = !off;
+            cfg.widgets = vec![a, b];
+            cfg
+        };
+
+        let mut rt = Runtime::with_threads(with(false), false, 1).expect("runtime");
+        assert_eq!(rt.config().widgets.len(), 2, "both are on to start");
+
+        // Switch "b" off: it disappears from the runtime and is reported as
+        // removed, which is what closes its window in the presenter.
+        let removed = rt.reload(with(true));
+        assert_eq!(removed, vec!["b".to_string()]);
+        assert_eq!(rt.config().widgets.len(), 1);
+        let ids: Vec<&str> = rt.config().widgets.iter().map(|w| w.id.as_str()).collect();
+        assert_eq!(ids, vec!["a"]);
+
+        // And back on: a reload adds it again with no restart.
+        assert!(rt.reload(with(false)).is_empty());
+        assert_eq!(rt.config().widgets.len(), 2);
     }
 
     #[test]

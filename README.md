@@ -336,12 +336,12 @@ Two sets ship with the repo, and both are rendered by the same command:
 ```sh
 stratum fixture                             # star.svg + diamond.png for the tour
 stratum render examples/widgets.toml        # seven widgets, one file, inline commands
-stratum render examples/desktop/config.toml # the real tree: 5 widgets + 5 scripts
+stratum render examples/desktop/config.toml # the real tree: 6 widgets + 6 scripts
 ```
 
 `examples/desktop/` is not a mock-up — it is the configuration this project runs
-day to day, copied in whole: a `config.toml`, five widget files, five scripts and
-two assets. It is the fastest way to see how a multi-widget tree is laid out, and
+day to day, copied in whole: a `config.toml`, six widget files, six scripts and
+three assets. It is the fastest way to see how a multi-widget tree is laid out, and
 the scripts double as worked examples of the data contract.
 
 | widget | what it shows | needs |
@@ -351,6 +351,7 @@ the scripts double as worked examples of the data contract.
 | `credits` | API-backed donut, `weight = 0.8`, readable failure states | an OpenRouter key, or nothing to see the error state |
 | `lastfm` | icon + label + "3m ago", one API call | a Last.fm key and user |
 | `nowplaying` | progress donut + track, from a four-source chain | nothing |
+| `stock` | filled line graph + one label, from an HTTP JSON endpoint | nothing (keyless) or `STRATUM_TICKER` |
 
 Neither set needs a key to *render*: `credits` prints `label=no API key`,
 `lastfm` prints `label=lastfm: no key/user`, and `nowplaying` says
@@ -581,6 +582,7 @@ Widget level:
 | `background` | table | `enabled`, `color`, `corner_radius`, `border_width`, `border_color`, `shadow{…}` |
 | `elements` | array | the three atoms below, in paint order |
 | `script` | table | where the values come from |
+| `enabled` | bool | `false` = keep the file, do not draw the widget |
 | `always_on_top` | bool | `false` = desktop level (apps cover it) |
 | `click_through` | bool | `true` = clicks reach what is underneath |
 | `layer` | integer | z-order among widgets at the same level |
@@ -603,6 +605,7 @@ Script: `file` or inline `command`, `interpreter`, `interval`, `timeout_ms`,
 | text is cut off | `max_chars` on the element, or a fixed `frame.w` that is too small |
 | it hides behind app windows | that is the default; add `always_on_top = true` |
 | clicks do nothing | `click_through = false` **and** `on = ["click"]` — pass-through is the default |
+| a widget vanished after an edit | check `enabled` in its file; `stratum config --search` prints `(N enabled)` when any are off |
 | nothing repaints when the script's output changes | the value is identical every run; `stratum render` (one shot) vs `stratum run --seconds 10` (polling) shows the difference |
 | the daemon behaves differently from your shell | it runs with launchd's environment. `stratum live` in a terminal, then `stratum service status` to compare |
 
@@ -617,6 +620,8 @@ Script: `file` or inline `command`, `interpreter`, `interval`, `timeout_ms`,
 | an icon + label pair | two elements, `layout = "row"`, `gap = 6` |
 | a chart with text over it | `layout = "stack"`, graph first then text (later = on top) |
 | a clickable state toggle | `click_through = false`, `on = ["click"]`, `interval = 0.0` |
+| switch a widget off without deleting it | `enabled = false` — the file stays in `widgets/`, `dump` still validates it, and flipping it back needs no restart |
+| a stock ticker | `graph` with `kind = "line"`, `filled = true`, `data_key = "series"`; script prints `series=…` from a quote endpoint — `examples/desktop/widgets/stock.toml` |
 | a widget that follows the active app | `on = ["space-change"]` and read `STRATUM_EVENT` |
 | what is playing right now | `command = "stratum nowplaying"` — the OS Now Playing dictionary; on macOS 26 that is gated for CLI callers, so chain it with the app's AppleScript or Last.fm — HANDOFF §5 has the ordering and `--why` explains an empty answer |
 
@@ -655,7 +660,7 @@ that happens. Widgets repaint only when their values actually change.
 ## Testing
 
 ```sh
-cargo test                     # 70 tests: 54 unit, 9 CLI, 4 examples, 2 golden (+1 doctest)
+cargo test                     # 73 tests: 56 unit, 10 CLI, 4 examples, 2 golden (+1 doctest)
 cargo test --test cli          # drives the real binary: exit codes, PNGs, dump round-trip
 cargo test --test examples     # the docs are executed: both example trees render offline
 cargo test --test golden       # compares 9 widgets × 1x/2x against committed PNGs
@@ -828,7 +833,7 @@ Local project — no public repository or issue tracker yet. Start with
 [rust-url]: https://www.rust-lang.org/
 [platform-shield]: https://img.shields.io/badge/platform-macOS%2011%2B-lightgrey?style=for-the-badge&logo=apple
 [platform-url]: https://www.apple.com/macos/
-[tests-shield]: https://img.shields.io/badge/tests-70%20passing-brightgreen?style=for-the-badge
+[tests-shield]: https://img.shields.io/badge/tests-73%20passing-brightgreen?style=for-the-badge
 [tests-url]: tests/
 [binary-shield]: https://img.shields.io/badge/release-3.7%20MB-blue?style=for-the-badge
 [binary-url]: HANDOFF.md#12-performance-and-resource-profile

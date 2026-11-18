@@ -167,8 +167,6 @@ command = "echo parts=63,37; echo pct=63"
 interval = 2.0
 ```
 
-Element types (exactly three):
-
 Widget-level placement, in one place because it is the thing people ask about:
 
     anchor / frame      where it sits on the desktop
@@ -176,6 +174,7 @@ Widget-level placement, in one place because it is the thing people ask about:
                         true            = floats above applications and the menu bar
     click_through       true (default)  = clicks reach whatever is underneath
     layer               z-order among widgets that share a level
+    enabled             true (default)  = false keeps the file, skips the widget
 
 Element types (exactly three):
 
@@ -281,9 +280,17 @@ than a config that loads zero widgets.
 6. `stratum render <cfg>` writes the PNGs. `stratum config <cfg> --search` when a
    path does not resolve; `stratum click <cfg> x y` for hit-testing.
 7. `stratum live`, then `stratum service install` once it is right.
-8. When in doubt, copy one that works: `examples/desktop/widgets/` — five
+8. When in doubt, copy one that works: `examples/desktop/widgets/` — six
    complete widgets, one per pattern (smallest, partial donut, Rust script, icon
-   + label, two-value donut).
+   + label, two-value donut, HTTP-backed series).
+
+To take a widget off the desktop without deleting it, set `enabled = false`. The
+widget is filtered out at `Runtime::with_threads`/`reload` — the single choke
+point every later pass reads — so its window closes on the next reload, while
+`dump` and `config --search` still see it and still validate it. `WidgetSpec`'s
+`Default` is hand-written for this reason: a derived default would hand
+programmatic widgets `enabled: false` while a TOML file omitting the key gets
+`true`.
 
 Two path bugs this runbook caught, both fixed and guarded now:
 
@@ -684,7 +691,7 @@ so `~/.config` stays configuration instead of growing a `target/` tree. `timeout
 because a Rust script's first run includes a compile; scripts run off the render
 thread, so a slow first tick costs a repaint, not a stalled desktop.
 
-### Tier 1 — unit tests, in-module (54)
+### Tier 1 — unit tests, in-module (56)
 
 They live beside the code they test (`#[cfg(test)] mod tests`), so adding a case
 is one function in the file you are already editing.
@@ -698,7 +705,7 @@ is one function in the file you are already editing.
 | `widget` | `text_fits_its_measured_box` — measure, render into exactly that box, assert the rightmost ink pixel is inside it (the text-units guard) |
 | `live` | CGImage round-trips byte-for-byte against the source pixmap; `write_info_matrix` writes one PNG per bitmapInfo candidate (the empirical record of why `1` is correct) |
 
-### Tier 2 — CLI integration, `tests/cli.rs` (9)
+### Tier 2 — CLI integration, `tests/cli.rs` (10)
 
 Drives the real binary via `env!("CARGO_BIN_EXE_stratum")`; no harness needed.
 

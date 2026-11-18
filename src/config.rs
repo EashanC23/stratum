@@ -625,6 +625,32 @@ value = "y"
     }
 
     #[test]
+    fn a_widget_is_enabled_unless_it_says_otherwise() {
+        let c = cfg_with(
+            r##"
+[[widget]]
+id = "on"
+[[widget.elements]]
+type = "text"
+value = "x"
+
+[[widget]]
+id = "off"
+enabled = false
+[[widget.elements]]
+type = "text"
+value = "y"
+"##,
+        )
+        .expect("config");
+        assert!(c.widgets[0].enabled, "omitting the key must mean enabled");
+        assert!(!c.widgets[1].enabled);
+        // A disabled widget is still parsed and still validated: it lives in the
+        // tree, it just does not draw.
+        assert_eq!(c.widgets[1].id, "off");
+    }
+
+    #[test]
     fn accepts_every_colour_syntax() {
         let c = cfg_with(
             r##"
@@ -650,7 +676,21 @@ background = { enabled = true, color = "0x11223344" }
         let text = toml::to_string_pretty(&first).expect("serialise");
         let second: Config = toml::from_str(&text).expect("re-parse");
         assert_eq!(first.widgets.len(), second.widgets.len());
-        assert_eq!(second.widgets.len(), 7);
+        // The tour ships eight blocks; one is `enabled = false`, and round-tripping
+        // must preserve that flag as faithfully as any other field.
+        assert_eq!(second.widgets.len(), 8);
+        let off = second
+            .widgets
+            .iter()
+            .find(|w| w.id == "off-demo")
+            .expect("off-demo");
+        assert!(!off.enabled, "enabled must survive a round trip");
+        let on = second
+            .widgets
+            .iter()
+            .find(|w| w.id == "host")
+            .expect("host");
+        assert!(on.enabled);
         let text2 = toml::to_string_pretty(&second).expect("serialise twice");
         assert_eq!(text, text2);
     }

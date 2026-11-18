@@ -596,7 +596,7 @@ fn default_timeout_ms() -> u64 {
     10_000
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WidgetSpec {
     #[serde(default)]
     pub id: String,
@@ -633,6 +633,36 @@ pub struct WidgetSpec {
     /// true for the ones that must stay visible while you work.
     #[serde(default)]
     pub always_on_top: bool,
+    /// Render this widget? Default true. `enabled = false` keeps the file in
+    /// `widgets/` — and in `dump`, so it is still validated — while the runtime
+    /// skips it and closes its window. A widget you switch off without deleting,
+    /// and one toggle away from coming back on the next config reload.
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+impl Default for WidgetSpec {
+    /// Hand-written so a programmatic widget is *enabled* like a parsed one.
+    /// `#[derive(Default)]` would give `enabled: false` while a TOML file that
+    /// omits the key gets `true` — a widget that silently never draws.
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            display: 0,
+            anchor: Anchor::default(),
+            frame: Frame::default(),
+            layout: Layout::default(),
+            padding: PaddingShorthand::default(),
+            gap: 0.0,
+            background: Background::default(),
+            elements: Vec::new(),
+            script: None,
+            layer: 0,
+            click_through: true,
+            always_on_top: false,
+            enabled: true,
+        }
+    }
 }
 
 impl WidgetSpec {

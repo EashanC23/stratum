@@ -208,6 +208,23 @@ color = "#8f8fa0"
 command = "echo 'title=A Very Long Track Name That Gets Clipped'; echo artist=Some Artist"
 interval = 0.0
 
+# ------------------------------------------------------- switched off -----
+# A widget can stay in the tree without being drawn: `enabled = false`. Useful
+# while you are rebuilding one, or when two variants take turns. `dump` still
+# parses and validates it, `config --search` still lists it, and flipping the flag
+# back needs no restart — the config reload picks it up.
+[[widget]]
+id = "off-demo"
+enabled = false
+anchor = "center"
+layout = "row"
+
+[[widget.elements]]
+type = "text"
+value = "this widget is disabled"
+kind = "static"
+color = "#eb5757"
+
 # ------------------------------------------------------------ clickable ----
 # Event-driven, not polled: `interval = 0` means "never poll", and `on = ["click"]`
 # makes the script run only when this widget is clicked. The script reads

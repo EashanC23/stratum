@@ -222,10 +222,16 @@ fn load(opts: &Opts) -> Result<(Config, String), String> {
     let dir = stratum::config::expand_path(&raw_dir, base)
         .display()
         .to_string();
+    let off = cfg.widgets.iter().filter(|w| !w.enabled).count();
     println!(
-        "config {}  {} widget(s) from {} file(s)  screen {}x{} @{}x",
+        "config {}  {} widget(s){} from {} file(s)  screen {}x{} @{}x",
         path.display(),
         cfg.widgets.len(),
+        if off > 0 {
+            format!(" ({off} disabled)")
+        } else {
+            String::new()
+        },
         cfg.loaded_files.len(),
         cfg.screen.w,
         cfg.screen.h,
@@ -666,7 +672,16 @@ fn cmd_config(args: &[String]) -> Result<(), String> {
     println!("scale       {}x", cfg.scale);
     println!("screen      {}x{}", cfg.screen.w, cfg.screen.h);
     println!("output      {}", cfg.output.dir);
-    println!("widgets     {}", cfg.widgets.len());
+    let live = cfg.widgets.iter().filter(|w| w.enabled).count();
+    println!(
+        "widgets     {}{}",
+        cfg.widgets.len(),
+        if live != cfg.widgets.len() {
+            format!(" ({live} enabled)")
+        } else {
+            String::new()
+        }
+    );
     if !cfg.resolved_widget_dirs.is_empty() {
         println!("widget_dirs");
         for d in &cfg.resolved_widget_dirs {

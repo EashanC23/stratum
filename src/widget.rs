@@ -327,6 +327,7 @@ mod tests {
             padding: PaddingShorthand(Padding::all(10.0)),
             gap: 0.0,
             background: Background::default(),
+            enabled: true,
             elements: vec![Element::Text(TextSpec {
                 value: value.into(),
                 kind: TextKind::Static,

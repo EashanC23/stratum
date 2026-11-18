@@ -66,6 +66,12 @@ fn the_single_file_tour_parses_and_renders() {
         "expected 7 widget PNGs + composite, got {files:?}"
     );
     assert!(files.contains(&"composite.png".to_string()));
+    // Eight widget blocks, one of them `enabled = false`: it is parsed, and it is
+    // not on the screen.
+    assert!(
+        !files.contains(&"off-demo.png".to_string()),
+        "a disabled widget must not be written, got {files:?}"
+    );
     let _ = std::fs::remove_dir_all(&out);
 }
 
@@ -76,8 +82,8 @@ fn the_real_tree_loads_every_widget() {
     assert!(res.status.success(), "config failed: {}", stderr(&res));
     let stdout = String::from_utf8_lossy(&res.stdout);
     assert!(
-        stdout.contains("widgets     5"),
-        "expected the five example widgets, got:\n{stdout}"
+        stdout.contains("widgets     6"),
+        "expected the six example widgets, got:\n{stdout}"
     );
 }
 
@@ -99,10 +105,10 @@ fn the_real_tree_renders_without_starting_any_script() {
     let files = pngs(&out);
     assert_eq!(
         files.len(),
-        6,
-        "expected 5 widget PNGs + composite, got {files:?}"
+        7,
+        "expected 6 widget PNGs + composite, got {files:?}"
     );
-    for id in ["clock", "load", "credits", "lastfm", "nowplaying"] {
+    for id in ["clock", "load", "credits", "lastfm", "nowplaying", "stock"] {
         assert!(
             files.iter().any(|f| f == &format!("{id}.png")),
             "{id}.png missing from {files:?}"
@@ -130,5 +136,5 @@ fn every_example_widget_file_parses_on_its_own() {
         );
         checked += 1;
     }
-    assert_eq!(checked, 5, "expected five example widget files");
+    assert_eq!(checked, 6, "expected six example widget files");
 }

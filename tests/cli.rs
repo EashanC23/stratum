@@ -503,3 +503,56 @@ fn a_disabled_widget_is_parsed_but_not_rendered() {
     assert!(text.contains("enabled = false"), "{text}");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// `render` freezes animation so it writes one image; every other command must
+/// keep it. The zeroing used to sit in the shared loader, which silently froze
+/// `run` and `live` too — this pins the split.
+#[test]
+fn only_render_disables_animation() {
+    let dir = scratch("anim");
+    let cfg = write(
+        &dir,
+        "anim.toml",
+        r##"
+screen = { x = 0, y = 0, w = 200, h = 100 }
+animation_ms = 400
+
+[[widget]]
+id = "t"
+[[widget.elements]]
+type = "text"
+value = "x"
+color = "#ffffff"
+"##,
+    );
+
+    let rendered = run(&[
+        "render",
+        cfg.to_str().expect("path"),
+        "-o",
+        dir.join("out").to_str().expect("path"),
+    ]);
+    assert!(
+        rendered.status.success(),
+        "render failed: {}",
+        stderr(&rendered)
+    );
+    let r = String::from_utf8_lossy(&rendered.stdout).into_owned();
+    assert!(r.contains("anim 0ms"), "render must freeze animation:\n{r}");
+
+    let ran = run(&[
+        "run",
+        cfg.to_str().expect("path"),
+        "--seconds",
+        "0.1",
+        "-o",
+        dir.join("run").to_str().expect("path"),
+    ]);
+    assert!(ran.status.success(), "run failed: {}", stderr(&ran));
+    let out = String::from_utf8_lossy(&ran.stdout).into_owned();
+    assert!(
+        out.contains("anim 400ms"),
+        "run must keep the configured animation:\n{out}"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}

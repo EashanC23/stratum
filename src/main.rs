@@ -194,7 +194,11 @@ fn parse_opts(args: &[String]) -> Result<Opts, String> {
     Ok(o)
 }
 
-fn load(opts: &Opts) -> Result<(Config, String), String> {
+/// Load the config for a command. `still_frame` means "one image, not a movie":
+/// `render` disables animation so it writes one PNG instead of repainting for
+/// `animation_ms`. It lives here as a parameter — not as a silent zeroing every
+/// command inherits — because that is how `run` and `live` lost their animation.
+fn load(opts: &Opts, still_frame: bool) -> Result<(Config, String), String> {
     let path = match &opts.cfg_path {
         Some(p) => p.clone(),
         None => stratum::config::discover(None)?,
@@ -206,9 +210,9 @@ fn load(opts: &Opts) -> Result<(Config, String), String> {
     if opts.no_composite {
         cfg.output.composite = false;
     }
-    // `render` takes a picture, not a movie: with animation on, the loop would
-    // repaint each widget for `animation_ms` and write the file a dozen times.
-    cfg.animation_ms = 0.0;
+    if still_frame {
+        cfg.animation_ms = 0.0;
+    }
     // Output dir: `-o` wins, else the config's. `~` is expanded and a relative
     // path is taken from the config file's directory, like every other path.
     let base = path
@@ -224,7 +228,7 @@ fn load(opts: &Opts) -> Result<(Config, String), String> {
         .to_string();
     let off = cfg.widgets.iter().filter(|w| !w.enabled).count();
     println!(
-        "config {}  {} widget(s){} from {} file(s)  screen {}x{} @{}x",
+        "config {}  {} widget(s){} from {} file(s)  screen {}x{} @{}x  anim {}ms",
         path.display(),
         cfg.widgets.len(),
         if off > 0 {
@@ -235,7 +239,8 @@ fn load(opts: &Opts) -> Result<(Config, String), String> {
         cfg.loaded_files.len(),
         cfg.screen.w,
         cfg.screen.h,
-        cfg.scale
+        cfg.scale,
+        cfg.animation_ms
     );
     Ok((cfg, dir))
 }
@@ -248,7 +253,7 @@ fn print_frames(painted: &[(String, stratum::model::Frame)]) {
 
 fn cmd_render(args: &[String]) -> Result<(), String> {
     let opts = parse_opts(args)?;
-    let (cfg, dir) = load(&opts)?;
+    let (cfg, dir) = load(&opts, true)?;
 
     let mut rt = runtime::Runtime::new(cfg.clone(), !opts.no_scripts)?;
     if let Some(ev) = &opts.event {
@@ -277,7 +282,7 @@ fn cmd_render(args: &[String]) -> Result<(), String> {
 /// the worker/event behaviour is visible from a terminal.
 fn cmd_run(args: &[String]) -> Result<(), String> {
     let opts = parse_opts(args)?;
-    let (cfg, dir) = load(&opts)?;
+    let (cfg, dir) = load(&opts, false)?;
 
     let mut rt = runtime::Runtime::new(cfg.clone(), !opts.no_scripts)?;
     if let Some(ev) = &opts.event {
@@ -378,7 +383,7 @@ fn cmd_click(args: &[String]) -> Result<(), String> {
 
     let mut opts = opts;
     opts.cfg_path = pos.pop().map(PathBuf::from);
-    let (cfg, dir) = load(&opts)?;
+    let (cfg, dir) = load(&opts, false)?;
 
     let mut rt = runtime::Runtime::new(cfg.clone(), !opts.no_scripts)?;
     let mut presenter = PngPresenter::new(Path::new(&dir), cfg.screen, cfg.scale, false);
@@ -1036,7 +1041,7 @@ fn cmd_nowplaying(_arg: Option<&str>) {
 /// update_goldens` rewrites them.
 fn cmd_golden(args: &[String]) -> Result<(), String> {
     let opts = parse_opts(args)?;
-    let (cfg, _) = load(&opts)?;
+    let (cfg, _) = load(&opts, false)?;
     // Goldens live with the tests, not with the demo output.
     let dir = opts.out_dir.unwrap_or_else(|| "tests/golden".into());
     let text = stratum::golden::text_engine_for(&cfg)?;
@@ -1106,7 +1111,7 @@ fn cmd_live(args: &[String]) -> Result<(), String> {
     let opts = parse_opts(args)?;
     // Under launchd a config error would exit and be restarted immediately, in a
     // tight loop that fills the log. Wait for the file to be fixed instead.
-    let (cfg, _dir) = match load(&opts) {
+    let (cfg, _dir) = match load(&opts, false) {
         Ok(v) => v,
         Err(e) if std::env::var_os("STRATUM_NO_WAIT").is_some() => return Err(e),
         Err(e) => {
@@ -1114,7 +1119,7 @@ fn cmd_live(args: &[String]) -> Result<(), String> {
             eprintln!("waiting for the config to be fixed (ctrl-c to give up)…");
             loop {
                 std::thread::sleep(std::time::Duration::from_secs(2));
-                match load(&opts) {
+                match load(&opts, false) {
                     Ok(v) => break v,
                     Err(e) => eprintln!("{e}"),
                 }

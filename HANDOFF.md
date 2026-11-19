@@ -214,6 +214,41 @@ App-level keys worth knowing:
 | `widget_dirs` / `script_dirs` | where widget files and scripts live |
 | `output.dir` | where the headless presenter writes |
 
+### Animation — one tween per graph element, nothing else
+
+Only **graph** elements animate. Text swaps glyphs and icons are static; there is
+no position, opacity or layout tween, and the live presenter disables Core
+Animation's implicit transitions (`CATransaction` off) so every frame is a fresh
+`CGImage` rather than the compositor's own guess.
+
+`Tween { from, to, started }` (src/runtime.rs:29-61) is keyed by
+`(widget id, element index)` and sampled with **smoothstep**, not linear:
+
+    t = elapsed / animation_ms
+    e = t*t*(3 - 2*t)
+    value = from + (to - from) * e
+
+Three rules decide what happens when new data lands mid-flight:
+
+| situation | behaviour |
+|---|---|
+| first sight of the element | `from == to`: it appears at its value, no animation |
+| target changed while animating | re-anchor `from = current sample`, `started = now` — continuous motion, never a jump |
+| series **length** changed | snap to the new series (`animation_ms` is meaningless between a 3-point and a 60-point series) |
+| `animation_ms = 0` | snap always |
+
+Frames come from the main loop: every tick marks any unfinished tween's widget
+dirty, so a 180 ms tween is only as smooth as the loop is fast. `--fps` (default
+10) sets the ceiling, and render cost sets the floor — measured on the donut
+probe, a requested 60 fps produced ~15 fps because each repaint takes ~60 ms.
+
+`render` forces `animation_ms = 0` so it writes one PNG instead of a dozen. That
+belongs to `render` alone: it used to sit inside the shared `load()`, which every
+command goes through, and it silently froze `run` and `live` (a requested 400 ms
+tween produced 4 repaints either side of the fix; after it, 10 at 10 fps and 19 at
+60 fps). `only_render_disables_animation` in `tests/cli.rs` asserts the split via
+the `anim NNNms` field in the startup line.
+
 A widget's `display = 1` resolves its `anchor`/`frame` against `screens[1]`, so
 "bottom-right of the second monitor" is one line. Out-of-range indices clamp to
 the last display instead of making the widget vanish.
@@ -705,7 +740,7 @@ is one function in the file you are already editing.
 | `widget` | `text_fits_its_measured_box` — measure, render into exactly that box, assert the rightmost ink pixel is inside it (the text-units guard) |
 | `live` | CGImage round-trips byte-for-byte against the source pixmap; `write_info_matrix` writes one PNG per bitmapInfo candidate (the empirical record of why `1` is correct) |
 
-### Tier 2 — CLI integration, `tests/cli.rs` (10)
+### Tier 2 — CLI integration, `tests/cli.rs` (11)
 
 Drives the real binary via `env!("CARGO_BIN_EXE_stratum")`; no harness needed.
 

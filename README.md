@@ -282,6 +282,12 @@ Discovery order: explicit argument → `$STRATUM_CONFIG` → `$XDG_CONFIG_HOME/s
 → `~/.config/stratum/`, trying `config.toml`, `.config`, `config`. A missing
 config lists every path it tried.
 
+Graph series ease between values: `animation_ms` (default 180) interpolates each
+point with smoothstep, re-anchoring at the current position if new data arrives
+mid-flight, and snapping when the series length changes. Only graphs animate —
+text and icons change on the next frame. `stratum render` forces the duration to
+0 so it writes one PNG instead of repainting a movie.
+
 A widget is one TOML block, and its element order is its paint order:
 
 ```toml
@@ -660,7 +666,7 @@ that happens. Widgets repaint only when their values actually change.
 ## Testing
 
 ```sh
-cargo test                     # 73 tests: 56 unit, 10 CLI, 4 examples, 2 golden (+1 doctest)
+cargo test                     # 74 tests: 56 unit, 11 CLI, 4 examples, 2 golden (+1 doctest)
 cargo test --test cli          # drives the real binary: exit codes, PNGs, dump round-trip
 cargo test --test examples     # the docs are executed: both example trees render offline
 cargo test --test golden       # compares 9 widgets × 1x/2x against committed PNGs
@@ -833,7 +839,7 @@ Local project — no public repository or issue tracker yet. Start with
 [rust-url]: https://www.rust-lang.org/
 [platform-shield]: https://img.shields.io/badge/platform-macOS%2011%2B-lightgrey?style=for-the-badge&logo=apple
 [platform-url]: https://www.apple.com/macos/
-[tests-shield]: https://img.shields.io/badge/tests-73%20passing-brightgreen?style=for-the-badge
+[tests-shield]: https://img.shields.io/badge/tests-74%20passing-brightgreen?style=for-the-badge
 [tests-url]: tests/
 [binary-shield]: https://img.shields.io/badge/release-3.7%20MB-blue?style=for-the-badge
 [binary-url]: HANDOFF.md#12-performance-and-resource-profile
